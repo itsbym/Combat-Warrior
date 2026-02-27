@@ -114,43 +114,42 @@ table.insert(Connections, jumpRequestConn)
 -- ==========================================
 -- 5. RUNTIME ENFORCEMENT (Heartbeat Loop)
 -- ==========================================
-local heartbeatConn = RunService.Heartbeat:Connect(function()
-    local char = LocalPlayer.Character
+-- [WARNING] Fitur ini sangat berisiko terdeteksi.
+function MovementModule.StartBypassLoop()
+    local heartbeatConn = RunService.Heartbeat:Connect(function()
+        local char = LocalPlayer.Character
 
-    -- Hook 2: Manipulasi Properti Stamina & Fallback
-    for _, hookData in ipairs(GCHooks) do
-        local obj = hookData.object
-        if getgenv().AiriConfig.InfStamina then
-            -- Maximize recovery variables to instantly restore any missing logic
-            rawset(obj, "gainPerSecond", 9999)
-            rawset(obj, "gainDelay", 0)
-            
-            -- Brute-force fallback jika _maxStamina tersedia
-            local maxStam = rawget(obj, "_maxStamina")
-            if maxStam then
-                rawset(obj, "_stamina", maxStam)
-            end
-        else
-            -- Restore original values jika di toggle mati
-            if rawget(obj, "gainPerSecond") == 9999 then
-                rawset(obj, "gainPerSecond", hookData.oldGain)
-                rawset(obj, "gainDelay", hookData.oldDelay)
+        -- Hook 2: Manipulasi Properti Stamina & Fallback
+        for _, hookData in ipairs(GCHooks) do
+            local obj = hookData.object
+            if getgenv().AiriConfig.InfStamina then
+                rawset(obj, "gainPerSecond", 9999)
+                rawset(obj, "gainDelay", 0)
+                
+                local maxStam = rawget(obj, "_maxStamina")
+                if maxStam then
+                    rawset(obj, "_stamina", maxStam)
+                end
+            else
+                if rawget(obj, "gainPerSecond") == 9999 then
+                    rawset(obj, "gainPerSecond", hookData.oldGain)
+                    rawset(obj, "gainDelay", hookData.oldDelay)
+                end
             end
         end
-    end
 
-    -- No Dodge Delay (Attribute Bypass)
-    if getgenv().AiriConfig.NoDodgeDelay and char then
-        -- Reset cooldown attributes secara instan setelah dash
-        if char:GetAttribute("DashCooldown") then
-            char:SetAttribute("DashCooldown", 0)
+        -- No Dodge Delay
+        if getgenv().AiriConfig.NoDodgeDelay and char then
+            if char:GetAttribute("DashCooldown") then
+                char:SetAttribute("DashCooldown", 0)
+            end
+            if char:GetAttribute("IsDashing") then
+                char:SetAttribute("IsDashing", false)
+            end
         end
-        if char:GetAttribute("IsDashing") then
-            char:SetAttribute("IsDashing", false)
-        end
-    end
-end)
-table.insert(Connections, heartbeatConn)
+    end)
+    table.insert(Connections, heartbeatConn)
+end
 
 -- ==========================================
 -- CLEANUP FUNCTION (Anti Memory-Leak)
