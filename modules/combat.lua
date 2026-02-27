@@ -268,30 +268,32 @@ end)
 
 -- 4. STAMINA BYPASS (No Math.Huge)
 -- Hooking internal OOP objects using Garbage Collection scanning
-task.spawn(function()
+function CombatModule.EnableStaminaBypass()
     if not getgc then return end
     
-    local success, err = pcall(function()
-        for _, obj in pairs(getgc(true)) do
-            if type(obj) == "table" then
-                -- Disable Drain completely by overwriting the class method
-                if rawget(obj, "enableDrain") and type(rawget(obj, "enableDrain")) == "function" then
-                    obj.enableDrain = function() return end
-                end
-                
-                -- Force instant recovery
-                if rawget(obj, "_maxStamina") and rawget(obj, "gainPerSecond") then
-                    obj.gainPerSecond = 9999
-                    obj.gainDelay = 0
+    task.spawn(function()
+        local success, err = pcall(function()
+            for _, obj in pairs(getgc(true)) do
+                if type(obj) == "table" then
+                    -- Disable Drain completely by overwriting the class method
+                    if rawget(obj, "enableDrain") and type(rawget(obj, "enableDrain")) == "function" then
+                        obj.enableDrain = function() return end
+                    end
+                    
+                    -- Force instant recovery
+                    if rawget(obj, "_maxStamina") and rawget(obj, "gainPerSecond") then
+                        obj.gainPerSecond = 9999
+                        obj.gainDelay = 0
+                    end
                 end
             end
+        end)
+        
+        if not success then
+            warn("[Airi Hub] Failed to hook stamina via GC: ", tostring(err))
         end
     end)
-    
-    if not success then
-        warn("[Airi Hub] Failed to hook stamina via GC: ", tostring(err))
-    end
-end)
+end
 
 -- Module Cleanup Logic
 function CombatModule:Unload()
