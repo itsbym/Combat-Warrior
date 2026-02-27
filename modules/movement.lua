@@ -9,16 +9,6 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
-
--- Global Config Initializer (Fallback if not set by main script)
-getgenv().AiriConfig = getgenv().AiriConfig or {
-    InfStamina = false,
-    NoJumpDelay = false,
-    NoDodgeDelay = false,
-    NoFallDamage = true,
-    AntiRagdoll = false
-}
-
 local MovementModule = {}
 
 -- Store original references for Unload()
@@ -27,7 +17,7 @@ local GCHooks = {}
 local Connections = {}
 
 -- ==========================================
--- 1 & 2. METAMETHOD HOOKS (Fall Damage & Anti-Ragdoll)
+-- METAMETHOD HOOKS (Fall Damage & Anti-Ragdoll)
 -- ==========================================
 OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
     local method = getnamecallmethod()
@@ -60,66 +50,62 @@ OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
 end))
 
 -- ==========================================
--- 3. INFINITE STAMINA (Garbage Collection Hook)
+-- MAIN INITIALIZATION
 -- ==========================================
-task.spawn(function()
-    if not getgc then return end
-    
-    local success, err = pcall(function()
-        for _, obj in pairs(getgc(true)) do
-            if type(obj) == "table" and rawget(obj, "enableDrain") and type(rawget(obj, "enableDrain")) == "function" then
-                local originalDrain = rawget(obj, "enableDrain")
-                
-                -- Simpan state original untuk fungsi Unload dan toggle off
-                table.insert(GCHooks, {
-                    object = obj,
-                    oldDrain = originalDrain,
-                    oldGain = rawget(obj, "gainPerSecond"),
-                    oldDelay = rawget(obj, "gainDelay")
-                })
-                
-                -- Hook 1: Timpa method drain untuk mencegah pengurangan stamina
-                obj.enableDrain = newcclosure(function(self, ...)
-                    if getgenv().AiriConfig.InfStamina then
-                        return -- Return kosong = bypass logic pengurangan
-                    end
-                    return originalDrain(self, ...)
-                end)
+function MovementModule.Init()
+    -- 1. NO JUMP DELAY (State Override via UserInput)
+    local jumpRequestConn = UserInputService.JumpRequest:Connect(function()
+        if getgenv().AiriConfig.NoJumpDelay then
+            local char = LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Dead then
+                    -- Bypass internal wait states dengan memaksa state Jumping secara real-time
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
             end
         end
     end)
-    
-    if not success then
-        warn("[Airi Hub] Failed to execute GC hook for Stamina: ", tostring(err))
-    end
-end)
+    table.insert(Connections, jumpRequestConn)
 
--- ==========================================
--- 4. NO JUMP DELAY (State Override)
--- ==========================================
-local jumpRequestConn = UserInputService.JumpRequest:Connect(function()
-    if getgenv().AiriConfig.NoJumpDelay then
-        local char = LocalPlayer.Character
-        if char then
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Dead then
-                -- Bypass internal wait states dengan memaksa state Jumping secara real-time
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    -- 2. INFINITE STAMINA (Garbage Collection Hook)
+    task.spawn(function()
+        if not getgc then return end
+        
+        local success, err = pcall(function()
+            for _, obj in pairs(getgc(true)) do
+                if type(obj) == "table" and rawget(obj, "enableDrain") and type(rawget(obj, "enableDrain")) == "function" then
+                    local originalDrain = rawget(obj, "enableDrain")
+                    
+                    -- Simpan state original untuk fungsi Unload dan toggle off
+                    table.insert(GCHooks, {
+                        object = obj,
+                        oldDrain = originalDrain,
+                        oldGain = rawget(obj, "gainPerSecond"),
+                        oldDelay = rawget(obj, "gainDelay")
+                    })
+                    
+                    -- Hook: Timpa method drain untuk mencegah pengurangan stamina
+                    obj.enableDrain = newcclosure(function(self, ...)
+                        if getgenv().AiriConfig.InfStamina then
+                            return -- Return kosong = bypass logic pengurangan
+                        end
+                        return originalDrain(self, ...)
+                    end)
+                end
             end
+        end)
+        
+        if not success then
+            warn("[Airi Hub] Failed to execute GC hook for Stamina: ", tostring(err))
         end
-    end
-end)
-table.insert(Connections, jumpRequestConn)
+    end)
 
--- ==========================================
--- 5. RUNTIME ENFORCEMENT (Heartbeat Loop)
--- ==========================================
--- [WARNING] Fitur ini sangat berisiko terdeteksi.
-function MovementModule.StartBypassLoop()
+    -- 3. RUNTIME ENFORCEMENT (Heartbeat Loop)
     local heartbeatConn = RunService.Heartbeat:Connect(function()
         local char = LocalPlayer.Character
 
-        -- Hook 2: Manipulasi Properti Stamina & Fallback
+        -- Manipulasi Properti Stamina & Fallback
         for _, hookData in ipairs(GCHooks) do
             local obj = hookData.object
             if getgenv().AiriConfig.InfStamina then
