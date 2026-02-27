@@ -60,14 +60,22 @@ local CombatModule = loadModule("combat")
 local MovementModule = loadModule("movement")
 local VisualsModule = loadModule("visual")
 
--- Inisialisasi Luna UI
+-- Inisialisasi Luna UI dengan Link Resmi Github & Backup Link
 local successUI, Luna = pcall(function()
-    return loadstring(game:HttpGet("https://raw.nebulasoftworks.xyz/luna", true))()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/refs/heads/master/source.lua", true))()
 end)
 
-if not successUI or not Luna then
-    warn("[Airi Hub] Failed to load Luna UI Library.")
-    return
+if not successUI or type(Luna) ~= "table" then
+    warn("[Airi Hub] Main UI link failed. Trying backup link...")
+    -- Backup Link jika link master Nebula down
+    successUI, Luna = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/AmeloxRUS/guiluna/refs/heads/main/luna", true))()
+    end)
+    
+    if not successUI or type(Luna) ~= "table" then
+        warn("[Airi Hub] FATAL ERROR: Cannot load Luna UI Library. Check your internet connection or executor.")
+        return
+    end
 end
 
 local Window = Luna:CreateWindow({
