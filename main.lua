@@ -41,8 +41,7 @@ end
 -- Load Modules
 local CombatModule = loadModule("combat")
 local MovementModule = loadModule("movement")
-local ESPModule = loadModule("esp_wrapper")
-local AimbotModule = loadModule("aimbot")
+local VisualsModule = loadModule("visual")
 
 -- Inisialisasi Luna UI
 local successUI, Luna = pcall(function()
@@ -205,8 +204,69 @@ Tabs.Visuals:CreateToggle({
     Flag = "ESPToggle",
     Callback = function(state)
         getgenv().AiriConfig.ESPEnabled = state
-        if ESPModule and ESPModule.ToggleESP then
-            pcall(ESPModule.ToggleESP, state)
+        if VisualsModule and VisualsModule.ToggleESP then
+            pcall(VisualsModule.ToggleESP, state)
+        end
+    end
+})
+
+Tabs.Visuals:CreateDropdown({
+    Name = "ESP Box Style",
+    Options = {"Corner", "Normal", "3D"},
+    CurrentValue = getgenv().AiriConfig.ESPBoxStyle,
+    Flag = "ESPBoxStyleDropdown",
+    Callback = function(value)
+        getgenv().AiriConfig.ESPBoxStyle = value
+        if VisualsModule and VisualsModule.SetBox then
+            pcall(VisualsModule.SetBox, getgenv().AiriConfig.ESPBox, value)
+        end
+    end
+})
+
+Tabs.Visuals:CreateToggle({
+    Name = "ESP Box",
+    CurrentValue = getgenv().AiriConfig.ESPBox,
+    Flag = "ESPBoxToggle",
+    Callback = function(state)
+        getgenv().AiriConfig.ESPBox = state
+        if VisualsModule and VisualsModule.SetBox then
+            pcall(VisualsModule.SetBox, state, getgenv().AiriConfig.ESPBoxStyle)
+        end
+    end
+})
+
+Tabs.Visuals:CreateToggle({
+    Name = "ESP Chams",
+    CurrentValue = getgenv().AiriConfig.ESPChams,
+    Flag = "ESPChamsToggle",
+    Callback = function(state)
+        getgenv().AiriConfig.ESPChams = state
+        if VisualsModule and VisualsModule.SetChams then
+            pcall(VisualsModule.SetChams, state)
+        end
+    end
+})
+
+Tabs.Visuals:CreateToggle({
+    Name = "ESP Skeleton",
+    CurrentValue = getgenv().AiriConfig.ESPSkeleton,
+    Flag = "ESPSkeletonToggle",
+    Callback = function(state)
+        getgenv().AiriConfig.ESPSkeleton = state
+        if VisualsModule and VisualsModule.SetSkeleton then
+            pcall(VisualsModule.SetSkeleton, state)
+        end
+    end
+})
+
+Tabs.Visuals:CreateToggle({
+    Name = "ESP Tracers",
+    CurrentValue = getgenv().AiriConfig.ESPTracers,
+    Flag = "ESPTracersToggle",
+    Callback = function(state)
+        getgenv().AiriConfig.ESPTracers = state
+        if VisualsModule and VisualsModule.SetTracers then
+            pcall(VisualsModule.SetTracers, state)
         end
     end
 })
@@ -266,7 +326,6 @@ Tabs.Visuals:BuildThemeSection()
 -- Memanggil fungsi Init dari masing-masing module apabila module berhasil diload
 if CombatModule and CombatModule.Init then pcall(CombatModule.Init) end
 if MovementModule and MovementModule.Init then pcall(MovementModule.Init) end
-if ESPModule and ESPModule.Init then pcall(ESPModule.Init) end
-if AimbotModule and AimbotModule.Init then pcall(AimbotModule.Init) end
+if VisualsModule and VisualsModule.Init then pcall(VisualsModule.Init) end
 
 print("[Airi Hub] Successfully loaded all UI and modules.")
