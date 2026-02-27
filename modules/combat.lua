@@ -1,7 +1,7 @@
 --[[
     Airi Hub - Combat Module
     Target: Combat Warriors
-    Focus: High Accuracy Auto Parry, Hitbox Expander, Smooth Aimbot, Stamina Bypass
+    Focus: High Accuracy Auto Parry, Hitbox Expander, Smooth Aimbot
 ]]
 
 local Players = game:GetService("Players")
@@ -13,49 +13,8 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Global Config Initializer (Fallback if not set by main script)
-getgenv().AiriConfig = getgenv().AiriConfig or {
-    -- Combat & Parry
-    AutoParry = false,
-    AutoParryDelay = 0.1, -- Ditambahkan dari main.lua
-    AntiParry = false,
-    HitboxExpander = false,
-    HitboxSize = 1,
-    
-    -- Movement
-    InfStamina = false,
-    NoJumpDelay = false,
-    NoDodgeDelay = false,
-    
-    -- Visuals (ESP)
-    ESPEnabled = false,
-    ESPOpacity = 1,
-    
-    -- Aimbot
-    AimbotEnabled = false,
-    AimbotSmooth = 0.5,
-    AimbotFOV = 100,
-    ShowFOV = true -- Tambahan lokal untuk debugging visual
-}
-
 local CombatModule = {}
-
--- Fungsi Toggle yang dipanggil oleh main.lua
-function CombatModule.ToggleAutoParry(state)
-    getgenv().AiriConfig.AutoParry = state
-end
-
-function CombatModule.ToggleAntiParry(state)
-    getgenv().AiriConfig.AntiParry = state
-end
-
-function CombatModule.ToggleHitbox(state)
-    getgenv().AiriConfig.HitboxExpander = state
-end
-
-function CombatModule.ToggleAimbot(state)
-    getgenv().AiriConfig.AimbotEnabled = state
-end
+local Connections = {}
 
 -- Variables
 local PlayerCharacters = Workspace:WaitForChild("PlayerCharacters")
@@ -83,7 +42,7 @@ local function triggerParry()
     
     -- Simulate 'F' key press via VirtualInputManager
     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
-    task.wait(0.05)
+    task.wait(getgenv().AiriConfig.AutoParryDelay)
     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
     
     -- Short delay to prevent spamming
@@ -92,78 +51,7 @@ local function triggerParry()
     end)
 end
 
--- 1. AUTO PARRY: Sound Detection (High Accuracy Trigger)
-PlayerCharacters.DescendantAdded:Connect(function(descendant)
-    local Config = getgenv().AiriConfig.Combat
-    if not Config.AutoParry or not Config.UseSound then return end
-    
-    if descendant:IsA("Sound") then
-        local name = descendant.Name
-        -- Pattern match for attack sounds: "1", "2", "3", "4"
-        if name == "1" or name == "2" or name == "3" or name == "4" then
-            -- Verify it's within a Hitbox instance
-            if descendant.Parent and descendant.Parent.Name == "Hitbox" then
-                local enemyChar = descendant:FindFirstAncestorOfClass("Model")
-                
-                -- Ensure it's an actual enemy character
-                if enemyChar and enemyChar.Parent == PlayerCharacters and enemyChar.Name ~= LocalPlayer.Name then
-                    local localChar = getLocalCharacter()
-                    if localChar and localChar:FindFirstChild("HumanoidRootPart") and enemyChar:FindFirstChild("HumanoidRootPart") then
-                        local dist = (localChar.HumanoidRootPart.Position - enemyChar.HumanoidRootPart.Position).Magnitude
-                        
-                        -- Range Check
-                        if dist <= Config.ParryRange then
-                            triggerParry()
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- 1. AUTO PARRY: Animation Detection (Secondary Verification)
-local function setupAnimationDetection(enemyChar)
-    if enemyChar.Name == LocalPlayer.Name then return end
-    
-    -- Wait for components to load
-    task.spawn(function()
-        local humanoid = enemyChar:WaitForChild("Humanoid", 10)
-        if not humanoid then return end
-        
-        local animator = humanoid:WaitForChild("Animator", 10)
-        if not animator then return end
-        
-        animator.AnimationPlayed:Connect(function(animationTrack)
-            local Config = getgenv().AiriConfig.Combat
-            if not Config.AutoParry or not Config.UseAnimation then return end
-            
-            local animName = animationTrack.Animation.Name:lower()
-            -- Match core slash animations
-            if animName:find("slash") then
-                local localChar = getLocalCharacter()
-                if localChar and localChar:FindFirstChild("HumanoidRootPart") and enemyChar:FindFirstChild("HumanoidRootPart") then
-                    local dist = (localChar.HumanoidRootPart.Position - enemyChar.HumanoidRootPart.Position).Magnitude
-                    
-                    if dist <= Config.ParryRange then
-                        triggerParry()
-                    end
-                end
-            end
-        end)
-    end)
-end
-
--- Init animation hooks for existing players
-for _, char in ipairs(PlayerCharacters:GetChildren()) do
-    setupAnimationDetection(char)
-end
-
--- Init animation hooks for new players
-PlayerCharacters.ChildAdded:Connect(setupAnimationDetection)
-
-
--- 2. HITBOX EXPANDER: Logic & Restoration
+-- HITBOX EXPANDER: Logic & Restoration
 local function resetHitbox(part)
     if not part then return end
     if OriginalSizes[part] then
@@ -195,11 +83,10 @@ local function applyHitbox(char, config)
     end
 end
 
-
--- 3. AIMBOT: Target Selection based on FOV and Cursor Proximity
+-- AIMBOT: Target Selection based on FOV and Cursor Proximity
 local function getClosestToCursor(config)
     local closestChar = nil
-    local shortestDist = config.FOV
+    local shortestDist = config.AimbotFOV
     local mousePos = UserInputService:GetMouseLocation()
 
     for _, char in ipairs(PlayerCharacters:GetChildren()) do
@@ -221,83 +108,134 @@ local function getClosestToCursor(config)
     return closestChar
 end
 
-
--- ⚙️ Main RenderStepped Loop (Smooth Aimbot & FOV Drawing)
-RunService.RenderStepped:Connect(function(deltaTime)
-    local Config = getgenv().AiriConfig.Combat
-
-    -- Update FOV Drawing
-    if Config.AimbotEnabled and Config.ShowFOV then
-        FOVCircle.Visible = true
-        FOVCircle.Radius = Config.AimbotFOV
-        FOVCircle.Position = UserInputService:GetMouseLocation()
-    else
-        FOVCircle.Visible = false
-    end
-
-    -- Update Hitboxes
-    for _, char in ipairs(PlayerCharacters:GetChildren()) do
-        if char.Name ~= LocalPlayer.Name then
-            local hitboxPart = Config.HitboxPart or "HumanoidRootPart"
-            local partTarget = char:FindFirstChild(hitboxPart)
-            local alternatePart = (hitboxPart == "Head") and char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
-            
-            if Config.HitboxExpander then
-                applyHitbox(char, Config)
-                resetHitbox(alternatePart) 
-            else
-                resetHitbox(partTarget)
-                resetHitbox(alternatePart)
-            end
-        end
-    end
-
-    -- Update Aimbot (Requires Right Click / MouseButton2)
-    if Config.AimbotEnabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        local target = getClosestToCursor(Config)
-        if target and target:FindFirstChild(Config.HitboxPart or "HumanoidRootPart") then
-            local targetPos = target[Config.HitboxPart or "HumanoidRootPart"].Position
-            local currentCFrame = Camera.CFrame
-            local targetCFrame = CFrame.new(currentCFrame.Position, targetPos)
-            
-            -- Smooth interpolation (Lerp)
-            Camera.CFrame = currentCFrame:Lerp(targetCFrame, Config.AimbotSmooth * deltaTime * 10)
-        end
-    end
-end)
-
--- 4. STAMINA BYPASS (No Math.Huge)
--- Hooking internal OOP objects using Garbage Collection scanning
-function CombatModule.EnableStaminaBypass()
-    if not getgc then return end
+-- 1. AUTO PARRY: Animation Detection
+local function setupAnimationDetection(enemyChar)
+    if enemyChar.Name == LocalPlayer.Name then return end
     
     task.spawn(function()
-        local success, err = pcall(function()
-            for _, obj in pairs(getgc(true)) do
-                if type(obj) == "table" then
-                    -- Disable Drain completely by overwriting the class method
-                    if rawget(obj, "enableDrain") and type(rawget(obj, "enableDrain")) == "function" then
-                        obj.enableDrain = function() return end
-                    end
+        local humanoid = enemyChar:WaitForChild("Humanoid", 10)
+        if not humanoid then return end
+        
+        local animator = humanoid:WaitForChild("Animator", 10)
+        if not animator then return end
+        
+        local animConn = animator.AnimationPlayed:Connect(function(animationTrack)
+            local Config = getgenv().AiriConfig
+            if not Config.AutoParry or not Config.UseAnimation then return end
+            
+            local animName = animationTrack.Animation.Name:lower()
+            if animName:find("slash") then
+                local localChar = getLocalCharacter()
+                if localChar and localChar:FindFirstChild("HumanoidRootPart") and enemyChar:FindFirstChild("HumanoidRootPart") then
+                    local dist = (localChar.HumanoidRootPart.Position - enemyChar.HumanoidRootPart.Position).Magnitude
                     
-                    -- Force instant recovery
-                    if rawget(obj, "_maxStamina") and rawget(obj, "gainPerSecond") then
-                        obj.gainPerSecond = 9999
-                        obj.gainDelay = 0
+                    if dist <= Config.ParryRange then
+                        triggerParry()
                     end
                 end
             end
         end)
+        table.insert(Connections, animConn)
+    end)
+end
+
+-- ==========================================
+-- MAIN INITIALIZATION
+-- ==========================================
+function CombatModule.Init()
+    -- Init animation hooks for existing players
+    for _, char in ipairs(PlayerCharacters:GetChildren()) do
+        setupAnimationDetection(char)
+    end
+
+    -- Init animation hooks for new players
+    local addedConn = PlayerCharacters.ChildAdded:Connect(setupAnimationDetection)
+    table.insert(Connections, addedConn)
+
+    -- AUTO PARRY: Sound Detection
+    local descConn = PlayerCharacters.DescendantAdded:Connect(function(descendant)
+        local Config = getgenv().AiriConfig
+        if not Config.AutoParry or not Config.UseSound then return end
         
-        if not success then
-            warn("[Airi Hub] Failed to hook stamina via GC: ", tostring(err))
+        if descendant:IsA("Sound") then
+            local name = descendant.Name
+            if name == "1" or name == "2" or name == "3" or name == "4" then
+                if descendant.Parent and descendant.Parent.Name == "Hitbox" then
+                    local enemyChar = descendant:FindFirstAncestorOfClass("Model")
+                    
+                    if enemyChar and enemyChar.Parent == PlayerCharacters and enemyChar.Name ~= LocalPlayer.Name then
+                        local localChar = getLocalCharacter()
+                        if localChar and localChar:FindFirstChild("HumanoidRootPart") and enemyChar:FindFirstChild("HumanoidRootPart") then
+                            local dist = (localChar.HumanoidRootPart.Position - enemyChar.HumanoidRootPart.Position).Magnitude
+                            
+                            if dist <= Config.ParryRange then
+                                triggerParry()
+                            end
+                        end
+                    end
+                end
+            end
         end
     end)
+    table.insert(Connections, descConn)
+
+    -- ⚙️ Main RenderStepped Loop (Smooth Aimbot & Hitbox Drawing)
+    local renderConn = RunService.RenderStepped:Connect(function(deltaTime)
+        local Config = getgenv().AiriConfig
+
+        -- Update FOV Drawing
+        if Config.AimbotEnabled and Config.ShowFOV then
+            FOVCircle.Visible = true
+            FOVCircle.Radius = Config.AimbotFOV
+            FOVCircle.Position = UserInputService:GetMouseLocation()
+        else
+            FOVCircle.Visible = false
+        end
+
+        -- Update Hitboxes
+        for _, char in ipairs(PlayerCharacters:GetChildren()) do
+            if char.Name ~= LocalPlayer.Name then
+                local hitboxPart = Config.HitboxPart or "HumanoidRootPart"
+                local partTarget = char:FindFirstChild(hitboxPart)
+                local alternatePart = (hitboxPart == "Head") and char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
+                
+                if Config.HitboxExpander then
+                    applyHitbox(char, Config)
+                    resetHitbox(alternatePart) 
+                else
+                    resetHitbox(partTarget)
+                    resetHitbox(alternatePart)
+                end
+            end
+        end
+
+        -- Update Aimbot (Requires Right Click / MouseButton2)
+        if Config.AimbotEnabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+            local target = getClosestToCursor(Config)
+            if target and target:FindFirstChild(Config.HitboxPart or "HumanoidRootPart") then
+                local targetPos = target[Config.HitboxPart or "HumanoidRootPart"].Position
+                local currentCFrame = Camera.CFrame
+                local targetCFrame = CFrame.new(currentCFrame.Position, targetPos)
+                
+                -- Smooth interpolation (Lerp)
+                Camera.CFrame = currentCFrame:Lerp(targetCFrame, Config.AimbotSmooth * deltaTime * 10)
+            end
+        end
+    end)
+    table.insert(Connections, renderConn)
 end
 
 -- Module Cleanup Logic
 function CombatModule:Unload()
     FOVCircle:Remove()
+    
+    for _, conn in ipairs(Connections) do
+        if conn.Connected then
+            conn:Disconnect()
+        end
+    end
+    table.clear(Connections)
+
     for part, _ in pairs(OriginalSizes) do
         resetHitbox(part)
     end
