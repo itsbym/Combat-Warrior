@@ -1,0 +1,184 @@
+--[[
+    Airi Hub - Movement Module
+    Target: Combat Warriors
+    Focus: Deep Hooking (Inf Stamina, No Jump/Dodge Delay, No Fall Damage, Anti-Ragdoll)
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Global Config Initializer (Fallback if not set by main script)
+getgenv().AiriConfig = getgenv().AiriConfig or {
+    InfStamina = false,
+    NoJumpDelay = false,
+    NoDodgeDelay = false,
+    NoFallDamage = true,
+    AntiRagdoll = false
+}
+
+local MovementModule = {}
+
+-- Store original references for Unload()
+local OldNamecall = nil
+local GCHooks = {}
+local Connections = {}
+
+-- ==========================================
+-- 1 & 2. METAMETHOD HOOKS (Fall Damage & Anti-Ragdoll)
+-- ==========================================
+OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+
+    -- Hanya filter panggilan dari client game (bukan dari executor)
+    if not checkcaller() then
+        -- Hook Fall Damage (Remote Event Filter)
+        if method == "FireServer" then
+            if type(args[1]) == "string" and (args[1] == "TakeFallDamage" or args[1] == "StartFallDamage") then
+                if getgenv().AiriConfig.NoFallDamage then
+                    return nil -- Drop the remote call silently
+                end
+            end
+            
+        -- Hook Anti-Ragdoll (Attribute Hook)
+        elseif method == "GetAttribute" then
+            if getgenv().AiriConfig.AntiRagdoll and type(args[1]) == "string" then
+                local attr = args[1]
+                if attr == "IsRagdolledServer" or attr == "IsRagdolledClient" then
+                    return false
+                elseif attr == "RagdollDisabledClient" or attr == "RagdollDisabledServer" then
+                    return true
+                end
+            end
+        end
+    end
+
+    return OldNamecall(self, ...)
+end))
+
+-- ==========================================
+-- 3. INFINITE STAMINA (Garbage Collection Hook)
+-- ==========================================
+task.spawn(function()
+    if not getgc then return end
+    
+    local success, err = pcall(function()
+        for _, obj in pairs(getgc(true)) do
+            if type(obj) == "table" and rawget(obj, "enableDrain") and type(rawget(obj, "enableDrain")) == "function" then
+                local originalDrain = rawget(obj, "enableDrain")
+                
+                -- Simpan state original untuk fungsi Unload dan toggle off
+                table.insert(GCHooks, {
+                    object = obj,
+                    oldDrain = originalDrain,
+                    oldGain = rawget(obj, "gainPerSecond"),
+                    oldDelay = rawget(obj, "gainDelay")
+                })
+                
+                -- Hook 1: Timpa method drain untuk mencegah pengurangan stamina
+                obj.enableDrain = newcclosure(function(self, ...)
+                    if getgenv().AiriConfig.InfStamina then
+                        return -- Return kosong = bypass logic pengurangan
+                    end
+                    return originalDrain(self, ...)
+                end)
+            end
+        end
+    end)
+    
+    if not success then
+        warn("[Airi Hub] Failed to execute GC hook for Stamina: ", tostring(err))
+    end
+end)
+
+-- ==========================================
+-- 4. NO JUMP DELAY (State Override)
+-- ==========================================
+local jumpRequestConn = UserInputService.JumpRequest:Connect(function()
+    if getgenv().AiriConfig.NoJumpDelay then
+        local char = LocalPlayer.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Dead then
+                -- Bypass internal wait states dengan memaksa state Jumping secara real-time
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end
+end)
+table.insert(Connections, jumpRequestConn)
+
+-- ==========================================
+-- 5. RUNTIME ENFORCEMENT (Heartbeat Loop)
+-- ==========================================
+local heartbeatConn = RunService.Heartbeat:Connect(function()
+    local char = LocalPlayer.Character
+
+    -- Hook 2: Manipulasi Properti Stamina & Fallback
+    for _, hookData in ipairs(GCHooks) do
+        local obj = hookData.object
+        if getgenv().AiriConfig.InfStamina then
+            -- Maximize recovery variables to instantly restore any missing logic
+            rawset(obj, "gainPerSecond", 9999)
+            rawset(obj, "gainDelay", 0)
+            
+            -- Brute-force fallback jika _maxStamina tersedia
+            local maxStam = rawget(obj, "_maxStamina")
+            if maxStam then
+                rawset(obj, "_stamina", maxStam)
+            end
+        else
+            -- Restore original values jika di toggle mati
+            if rawget(obj, "gainPerSecond") == 9999 then
+                rawset(obj, "gainPerSecond", hookData.oldGain)
+                rawset(obj, "gainDelay", hookData.oldDelay)
+            end
+        end
+    end
+
+    -- No Dodge Delay (Attribute Bypass)
+    if getgenv().AiriConfig.NoDodgeDelay and char then
+        -- Reset cooldown attributes secara instan setelah dash
+        if char:GetAttribute("DashCooldown") then
+            char:SetAttribute("DashCooldown", 0)
+        end
+        if char:GetAttribute("IsDashing") then
+            char:SetAttribute("IsDashing", false)
+        end
+    end
+end)
+table.insert(Connections, heartbeatConn)
+
+-- ==========================================
+-- CLEANUP FUNCTION (Anti Memory-Leak)
+-- ==========================================
+function MovementModule:Unload()
+    -- 1. Restore Metamethods
+    if OldNamecall then
+        hookmetamethod(game, "__namecall", OldNamecall)
+    end
+    
+    -- 2. Disconnect Events
+    for _, conn in ipairs(Connections) do
+        if conn.Connected then
+            conn:Disconnect()
+        end
+    end
+    table.clear(Connections)
+    
+    -- 3. Restore GC Objects (Stamina)
+    for _, hookData in ipairs(GCHooks) do
+        local obj = hookData.object
+        if obj then
+            rawset(obj, "enableDrain", hookData.oldDrain)
+            rawset(obj, "gainPerSecond", hookData.oldGain)
+            rawset(obj, "gainDelay", hookData.oldDelay)
+        end
+    end
+    table.clear(GCHooks)
+end
+
+return MovementModule
