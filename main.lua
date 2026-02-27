@@ -48,6 +48,7 @@ local function loadModule(name)
 end
 
 -- Load Modules
+local AntiDetectModule = loadModule("antidetect")
 local CombatModule = loadModule("combat")
 local MovementModule = loadModule("movement")
 local VisualsModule = loadModule("visual")
@@ -332,6 +333,9 @@ Tabs.Visuals:BuildThemeSection()
 -----------------------------------------
 -- INITIALIZE MODULES
 -----------------------------------------
+-- Anti-Detect harus diinisialisasi paling awal sebelum modul lain
+if AntiDetectModule and AntiDetectModule.Init then pcall(AntiDetectModule.Init) end
+
 -- Memanggil fungsi Init dari masing-masing module apabila module berhasil diload
 if CombatModule and CombatModule.Init then pcall(CombatModule.Init) end
 if MovementModule and MovementModule.Init then pcall(MovementModule.Init) end
