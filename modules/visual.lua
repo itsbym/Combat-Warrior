@@ -8,19 +8,6 @@ local VisualsModule = {}
 
 -- Global Config Initializer (Fallback if not set by main script)
 getgenv().AiriConfig = getgenv().AiriConfig or {
-    -- Combat & Parry
-    AutoParry = false,
-    AutoParryDelay = 0.1,
-    AntiParry = false,
-    HitboxExpander = false,
-    HitboxSize = 1,
-    
-    -- Movement
-    InfStamina = false,
-    NoJumpDelay = false,
-    NoDodgeDelay = false,
-    
-    -- Visuals (ESP)
     ESPEnabled = false,
     ESPOpacity = 1,
     ESPBox = true,
@@ -30,12 +17,7 @@ getgenv().AiriConfig = getgenv().AiriConfig or {
     ESPTracers = false,
     ESPNames = true,
     ESPDistances = true,
-    ESPHealthBar = true,
-    
-    -- Aimbot
-    AimbotEnabled = false,
-    AimbotSmooth = 0.5,
-    AimbotFOV = 100
+    ESPHealthBar = true
 }
 
 -- Reference to the external Twilight Library
@@ -142,7 +124,7 @@ end
 -- ==========================================
 function VisualsModule.ToggleESP(state)
     getgenv().AiriConfig.ESPEnabled = state
-    if Twilight then Twilight.Settings.Enabled = state end
+    VisualsModule.UpdateAll() -- Menggunakan UpdateAll() agar ESP library me-refresh setting secara menyeluruh
 end
 
 function VisualsModule.SetBox(state, style)
@@ -183,7 +165,7 @@ end
 -- ==========================================
 function VisualsModule.Unload()
     if Twilight then
-        Twilight:Unload()
+        pcall(function() Twilight:Unload() end)
         Twilight = nil
     end
 end
