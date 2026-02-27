@@ -65,28 +65,30 @@ local Window = Luna:CreateWindow({
     Color = Color3.fromRGB(191, 64, 191) -- Tema warna ungu
 })
 
-Window:CreateHomeTab()
+local Tabs = {}
+Tabs.Combat = Window:CreateTab({
+    Name = "Combat",
+    Icon = "swords",
+    ImageSource = "Lucide",
+    ShowTitle = true
+})
 
-local Tabs = {
-    Combat = Window:CreateTab({
-        Name = "Combat",
-        Icon = "swords",
-        ImageSource = "Lucide",
-        ShowTitle = true
-    }),
-    Movement = Window:CreateTab({
-        Name = "Movement",
-        Icon = "person",
-        ImageSource = "Material",
-        ShowTitle = true
-    }),
-    Visuals = Window:CreateTab({
-        Name = "Visuals",
-        Icon = "visibility",
-        ImageSource = "Material",
-        ShowTitle = true
-    })
-}
+Tabs.Movement = Window:CreateTab({
+    Name = "Movement",
+    Icon = "person",
+    ImageSource = "Material",
+    ShowTitle = true
+})
+
+Tabs.Visuals = Window:CreateTab({
+    Name = "Visuals",
+    Icon = "visibility",
+    ImageSource = "Material",
+    ShowTitle = true
+})
+
+-- Home Tab sebaiknya dibuat terakhir atau di awal setelah semua tab di-setup
+Window:CreateHomeTab()
 
 -----------------------------------------
 -- COMBAT TAB
