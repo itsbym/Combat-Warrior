@@ -15,12 +15,21 @@ getgenv().AiriConfig = getgenv().AiriConfig or {
     -- Visuals (ESP)
     ESPEnabled = false,
     ESPOpacity = 1,
+    ESPBox = true,
+    ESPBoxStyle = "Normal",
+    ESPChams = false,
+    ESPSkeleton = false,
+    ESPTracers = false,
+    ESPNames = true,
+    ESPDistances = true,
+    ESPHealthBar = true,
     
     -- Aimbot
     AimbotEnabled = false,
     AimbotSmooth = 0.5,
     AimbotFOV = 100
 }
+local Config = getgenv().AiriConfig
 
 -- Fungsi Helper untuk Load Module dengan pcall
 local function loadModule(name)
@@ -99,7 +108,7 @@ Tabs.Combat:CreateToggle({
     CurrentValue = getgenv().AiriConfig.AutoParry,
     Flag = "AutoParryToggle",
     Callback = function(state)
-        getgenv().AiriConfig.AutoParry = state
+        Config.AutoParry = state
         if CombatModule and CombatModule.ToggleAutoParry then
             pcall(CombatModule.ToggleAutoParry, state)
         end
@@ -313,7 +322,7 @@ Tabs.Visuals:CreateSlider({
     CurrentValue = getgenv().AiriConfig.AimbotFOV,
     Flag = "AimbotFOVSlider",
     Callback = function(value)
-        getgenv().AiriConfig.AimbotFOV = value
+        Config.AimbotFOV = value
     end
 })
 
