@@ -4,13 +4,19 @@ getgenv().AiriConfig = getgenv().AiriConfig or {
     AutoParry = false,
     AutoParryDelay = 0.1,
     AntiParry = false,
+    UseSound = true,
+    UseAnimation = true,
+    ParryRange = 15,
     HitboxExpander = false,
     HitboxSize = 1,
+    HitboxPart = "HumanoidRootPart",
     
     -- Movement
     InfStamina = false,
     NoJumpDelay = false,
     NoDodgeDelay = false,
+    NoFallDamage = true,
+    AntiRagdoll = false,
     
     -- Visuals (ESP)
     ESPEnabled = false,
@@ -27,7 +33,8 @@ getgenv().AiriConfig = getgenv().AiriConfig or {
     -- Aimbot
     AimbotEnabled = false,
     AimbotSmooth = 0.5,
-    AimbotFOV = 100
+    AimbotFOV = 100,
+    ShowFOV = true
 }
 local Config = getgenv().AiriConfig
 
@@ -70,33 +77,16 @@ local Window = Luna:CreateWindow({
     LoadingEnabled = true,
     LoadingTitle = "Airi Hub Interface",
     LoadingSubtitle = "Loading Modules...",
-    KeySystem = false, -- Dimatikan agar mudah diakses, ubah ke true jika butuh
+    KeySystem = false,
     Color = Color3.fromRGB(191, 64, 191) -- Tema warna ungu
 })
 
 local Tabs = {}
-Tabs.Combat = Window:CreateTab({
-    Name = "Combat",
-    Icon = "swords",
-    ImageSource = "Lucide",
-    ShowTitle = true
-})
+Tabs.Combat = Window:CreateTab({ Name = "Combat", Icon = "swords", ImageSource = "Lucide", ShowTitle = true })
+Tabs.Movement = Window:CreateTab({ Name = "Movement", Icon = "person", ImageSource = "Material", ShowTitle = true })
+Tabs.Visuals = Window:CreateTab({ Name = "Visuals", Icon = "visibility", ImageSource = "Material", ShowTitle = true })
+Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "settings", ImageSource = "Material", ShowTitle = true })
 
-Tabs.Movement = Window:CreateTab({
-    Name = "Movement",
-    Icon = "person",
-    ImageSource = "Material",
-    ShowTitle = true
-})
-
-Tabs.Visuals = Window:CreateTab({
-    Name = "Visuals",
-    Icon = "visibility",
-    ImageSource = "Material",
-    ShowTitle = true
-})
-
--- Home Tab sebaiknya dibuat terakhir atau di awal setelah semua tab di-setup
 Window:CreateHomeTab()
 
 -----------------------------------------
@@ -109,21 +99,18 @@ Tabs.Combat:CreateToggle({
     CurrentValue = getgenv().AiriConfig.AutoParry,
     Flag = "AutoParryToggle",
     Callback = function(state)
-        Config.AutoParry = state
-        if CombatModule and CombatModule.ToggleAutoParry then
-            pcall(CombatModule.ToggleAutoParry, state)
-        end
+        getgenv().AiriConfig.AutoParry = state
     end
 })
 
 Tabs.Combat:CreateSlider({
-    Name = "Auto Parry Delay",
-    Range = {0.1, 1},
-    Increment = 0.1,
-    CurrentValue = getgenv().AiriConfig.AutoParryDelay,
-    Flag = "AutoParryDelaySlider",
+    Name = "Auto Parry Range",
+    Range = {5, 30},
+    Increment = 1,
+    CurrentValue = getgenv().AiriConfig.ParryRange,
+    Flag = "AutoParryRangeSlider",
     Callback = function(value)
-        getgenv().AiriConfig.AutoParryDelay = value
+        getgenv().AiriConfig.ParryRange = value
     end
 })
 
@@ -134,9 +121,6 @@ Tabs.Combat:CreateToggle({
     Flag = "AntiParryToggle",
     Callback = function(state)
         getgenv().AiriConfig.AntiParry = state
-        if CombatModule and CombatModule.ToggleAntiParry then
-            pcall(CombatModule.ToggleAntiParry, state)
-        end
     end
 })
 
@@ -147,9 +131,6 @@ Tabs.Combat:CreateToggle({
     Flag = "HitboxExpanderToggle",
     Callback = function(state)
         getgenv().AiriConfig.HitboxExpander = state
-        if CombatModule and CombatModule.ToggleHitbox then
-            pcall(CombatModule.ToggleHitbox, state)
-        end
     end
 })
 
@@ -174,9 +155,6 @@ Tabs.Movement:CreateToggle({
     Flag = "InfStaminaToggle",
     Callback = function(state)
         getgenv().AiriConfig.InfStamina = state
-        if MovementModule and MovementModule.ToggleInfStamina then
-            pcall(MovementModule.ToggleInfStamina, state)
-        end
     end
 })
 
@@ -186,9 +164,6 @@ Tabs.Movement:CreateToggle({
     Flag = "NoJumpDelayToggle",
     Callback = function(state)
         getgenv().AiriConfig.NoJumpDelay = state
-        if MovementModule and MovementModule.ToggleNoJumpDelay then
-            pcall(MovementModule.ToggleNoJumpDelay, state)
-        end
     end
 })
 
@@ -198,9 +173,6 @@ Tabs.Movement:CreateToggle({
     Flag = "NoDodgeDelayToggle",
     Callback = function(state)
         getgenv().AiriConfig.NoDodgeDelay = state
-        if MovementModule and MovementModule.ToggleNoDodgeDelay then
-            pcall(MovementModule.ToggleNoDodgeDelay, state)
-        end
     end
 })
 
@@ -214,9 +186,7 @@ Tabs.Visuals:CreateToggle({
     Flag = "ESPToggle",
     Callback = function(state)
         getgenv().AiriConfig.ESPEnabled = state
-        if VisualsModule and VisualsModule.ToggleESP then
-            pcall(VisualsModule.ToggleESP, state)
-        end
+        if VisualsModule and VisualsModule.ToggleESP then pcall(VisualsModule.ToggleESP, state) end
     end
 })
 
@@ -227,9 +197,7 @@ Tabs.Visuals:CreateDropdown({
     Flag = "ESPBoxStyleDropdown",
     Callback = function(value)
         getgenv().AiriConfig.ESPBoxStyle = value
-        if VisualsModule and VisualsModule.SetBox then
-            pcall(VisualsModule.SetBox, getgenv().AiriConfig.ESPBox, value)
-        end
+        if VisualsModule and VisualsModule.SetBox then pcall(VisualsModule.SetBox, getgenv().AiriConfig.ESPBox, value) end
     end
 })
 
@@ -239,9 +207,7 @@ Tabs.Visuals:CreateToggle({
     Flag = "ESPBoxToggle",
     Callback = function(state)
         getgenv().AiriConfig.ESPBox = state
-        if VisualsModule and VisualsModule.SetBox then
-            pcall(VisualsModule.SetBox, state, getgenv().AiriConfig.ESPBoxStyle)
-        end
+        if VisualsModule and VisualsModule.SetBox then pcall(VisualsModule.SetBox, state, getgenv().AiriConfig.ESPBoxStyle) end
     end
 })
 
@@ -251,9 +217,7 @@ Tabs.Visuals:CreateToggle({
     Flag = "ESPChamsToggle",
     Callback = function(state)
         getgenv().AiriConfig.ESPChams = state
-        if VisualsModule and VisualsModule.SetChams then
-            pcall(VisualsModule.SetChams, state)
-        end
+        if VisualsModule and VisualsModule.SetChams then pcall(VisualsModule.SetChams, state) end
     end
 })
 
@@ -263,9 +227,7 @@ Tabs.Visuals:CreateToggle({
     Flag = "ESPSkeletonToggle",
     Callback = function(state)
         getgenv().AiriConfig.ESPSkeleton = state
-        if VisualsModule and VisualsModule.SetSkeleton then
-            pcall(VisualsModule.SetSkeleton, state)
-        end
+        if VisualsModule and VisualsModule.SetSkeleton then pcall(VisualsModule.SetSkeleton, state) end
     end
 })
 
@@ -275,9 +237,7 @@ Tabs.Visuals:CreateToggle({
     Flag = "ESPTracersToggle",
     Callback = function(state)
         getgenv().AiriConfig.ESPTracers = state
-        if VisualsModule and VisualsModule.SetTracers then
-            pcall(VisualsModule.SetTracers, state)
-        end
+        if VisualsModule and VisualsModule.SetTracers then pcall(VisualsModule.SetTracers, state) end
     end
 })
 
@@ -289,19 +249,17 @@ Tabs.Visuals:CreateSlider({
     Flag = "ESPOpacitySlider",
     Callback = function(value)
         getgenv().AiriConfig.ESPOpacity = value
+        if VisualsModule and VisualsModule.SetOpacity then pcall(VisualsModule.SetOpacity, value) end
     end
 })
 
 Tabs.Visuals:CreateSection("Aimbot Settings")
 Tabs.Visuals:CreateToggle({
-    Name = "Enable Aimbot",
+    Name = "Enable Aimbot (Hold RMB)",
     CurrentValue = getgenv().AiriConfig.AimbotEnabled,
     Flag = "AimbotToggle",
     Callback = function(state)
         getgenv().AiriConfig.AimbotEnabled = state
-        if AimbotModule and AimbotModule.ToggleAimbot then
-            pcall(AimbotModule.ToggleAimbot, state)
-        end
     end
 })
 
@@ -323,20 +281,21 @@ Tabs.Visuals:CreateSlider({
     CurrentValue = getgenv().AiriConfig.AimbotFOV,
     Flag = "AimbotFOVSlider",
     Callback = function(value)
-        Config.AimbotFOV = value
+        getgenv().AiriConfig.AimbotFOV = value
     end
 })
 
--- Opsi tambahan untuk membangun menu pengaturan/tema bawaan Luna
-Tabs.Visuals:BuildThemeSection()
+-----------------------------------------
+-- SETTINGS TAB
+-----------------------------------------
+Tabs.Settings:CreateSection("UI Settings")
+Tabs.Settings:BuildThemeSection()
 
 -----------------------------------------
 -- INITIALIZE MODULES
 -----------------------------------------
--- Anti-Detect harus diinisialisasi paling awal sebelum modul lain
+-- Anti-Detect harus diinisialisasi paling awal
 if AntiDetectModule and AntiDetectModule.Init then pcall(AntiDetectModule.Init) end
-
--- Memanggil fungsi Init dari masing-masing module apabila module berhasil diload
 if CombatModule and CombatModule.Init then pcall(CombatModule.Init) end
 if MovementModule and MovementModule.Init then pcall(MovementModule.Init) end
 if VisualsModule and VisualsModule.Init then pcall(VisualsModule.Init) end
