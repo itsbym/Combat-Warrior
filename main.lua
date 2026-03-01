@@ -31,27 +31,48 @@ end
 print("[Airi Hub] Starting Engine...")
 
 -- Load Modules
+print("[Airi Hub] Loading modules...")
 local AntiDetectModule = loadModule("antidetect")
-local CombatModule = loadModule("combat")
-local MovementModule = loadModule("movement")
-local VisualsModule = loadModule("visual")
+print("[Airi Hub] AntiDetectModule loaded: " .. tostring(AntiDetectModule ~= nil))
 
-print("[Airi Hub] Fetching Luna UI...")
+local CombatModule = loadModule("combat")
+print("[Airi Hub] CombatModule loaded: " .. tostring(CombatModule ~= nil))
+
+local MovementModule = loadModule("movement")
+print("[Airi Hub] MovementModule loaded: " .. tostring(MovementModule ~= nil))
+
+local VisualsModule = loadModule("visual")
+print("[Airi Hub] VisualsModule loaded: " .. tostring(VisualsModule ~= nil))
+
+print("[Airi Hub] All modules loading complete. Fetching Luna UI...")
 
 -- helper yang mencoba beberapa sumber termasuk file lokal
 local function fetchLuna()
+    print("[Airi Hub] DEBUG: Attempting to load Luna from local file...")
+    
     -- coba file lokal terlebih dahulu (paling reliable)
     local ok, localCode = pcall(readfile, "LUNA-LIB-UI/source.lua")
+    print("[Airi Hub] DEBUG: Local readfile status: " .. tostring(ok))
+    
     if ok and type(localCode) == "string" and #localCode > 0 then
+        print("[Airi Hub] DEBUG: Local file read successfully, compiling...")
         local success, luaObj = pcall(loadstring, localCode)
+        print("[Airi Hub] DEBUG: Loadstring status: " .. tostring(success) .. ", type: " .. type(luaObj))
+        
         if success and type(luaObj) == "function" then
+            print("[Airi Hub] DEBUG: Executing Luna function...")
             local result = luaObj()
+            print("[Airi Hub] DEBUG: Luna result type: " .. type(result))
+            
             if type(result) == "table" then
+                print("[Airi Hub] SUCCESS: Loaded Luna from local file!")
                 return true, result
             end
         end
     end
 
+    print("[Airi Hub] DEBUG: Local file failed, trying GitHub sources...")
+    
     -- jika lokal gagal, coba dari GitHub
     local sources = {
         "https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/refs/heads/master/source.lua",
@@ -59,12 +80,22 @@ local function fetchLuna()
     }
 
     for _, url in ipairs(sources) do
+        print("[Airi Hub] DEBUG: Trying GitHub URL: " .. url)
         local ok, code = pcall(game.HttpGet, game, url, true)
+        print("[Airi Hub] DEBUG: HttpGet status: " .. tostring(ok))
+        
         if ok and type(code) == "string" and #code > 0 then
+            print("[Airi Hub] DEBUG: Got code from GitHub, compiling...")
             local success, luaObj = pcall(loadstring, code)
+            print("[Airi Hub] DEBUG: Loadstring status: " .. tostring(success))
+            
             if success and type(luaObj) == "function" then
+                print("[Airi Hub] DEBUG: Executing Luna function...")
                 local result = luaObj()
+                print("[Airi Hub] DEBUG: Luna result type: " .. type(result))
+                
                 if type(result) == "table" then
+                    print("[Airi Hub] SUCCESS: Loaded Luna from GitHub!")
                     return true, result
                 end
             end
