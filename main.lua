@@ -116,15 +116,36 @@ print("[Airi Hub] Initializing modules asynchronously...")
 local function loadModule(name)
     local url = "https://raw.githubusercontent.com/itsbym/Combat-Warrior/main/modules/" .. name .. ".lua?t=" .. tostring(tick())
     
+    print("[Airi Hub] Attempting to load module from: " .. url)
+    
     local success, result = pcall(function()
-        return loadstring(game:HttpGet(url))()
+        local code = game:HttpGet(url)
+        if not code or #code == 0 then
+            return nil
+        end
+        return loadstring(code)()
     end)
     
-    if success then
+    if success and result then
         print("[Airi Hub] Successfully loaded module: " .. name)
         return result
     else
-        warn("[Airi Hub] FATAL ERROR on module '" .. name .. "': " .. tostring(result))
+        local errorMsg = tostring(result)
+        warn("[Airi Hub] FAILED to load module '" .. name .. "': " .. errorMsg)
+        -- Try alternative URL structure if first one fails
+        if name == "visual" then
+            print("[Airi Hub] Trying alternative name 'visuals' for visual module...")
+            local altUrl = "https://raw.githubusercontent.com/itsbym/Combat-Warrior/main/modules/visuals.lua?t=" .. tostring(tick())
+            local altSuccess, altResult = pcall(function()
+                local code = game:HttpGet(altUrl)
+                if not code or #code == 0 then return nil end
+                return loadstring(code)()
+            end)
+            if altSuccess and altResult then
+                print("[Airi Hub] Successfully loaded module with alternative name: visuals")
+                return altResult
+            end
+        end
         return nil
     end
 end
@@ -164,7 +185,7 @@ print("[Airi Hub] Now populating tabs (modules loading in background)...")
 -- COMBAT TAB
 -----------------------------------------
 print("[Airi Hub] Populating Combat tab...")
-pcall(function()
+local combatSuccess, combatErr = pcall(function()
     Tabs.Combat:CreateSection("Auto Parry Settings")
     Tabs.Combat:CreateToggle({
         Name = "Auto Parry",
@@ -207,12 +228,13 @@ pcall(function()
     })
     print("[Airi Hub] Combat tab populated!")
 end)
+if not combatSuccess then warn("[Airi Hub] Combat tab error: " .. tostring(combatErr)) end
 
 -----------------------------------------
 -- MOVEMENT TAB
 -----------------------------------------
 print("[Airi Hub] Populating Movement tab...")
-pcall(function()
+local movementSuccess, movementErr = pcall(function()
     Tabs.Movement:CreateSection("Stamina & Cooldowns")
     Tabs.Movement:CreateToggle({
         Name = "Infinite Stamina",
@@ -236,12 +258,13 @@ pcall(function()
     })
     print("[Airi Hub] Movement tab populated!")
 end)
+if not movementSuccess then warn("[Airi Hub] Movement tab error: " .. tostring(movementErr)) end
 
 -----------------------------------------
 -- VISUALS TAB (ESP & AIMBOT)
 -----------------------------------------
 print("[Airi Hub] Populating Visuals tab...")
-pcall(function()
+local visualsSuccess, visualsErr = pcall(function()
     Tabs.Visuals:CreateSection("ESP Settings")
     Tabs.Visuals:CreateToggle({
         Name = "Enable ESP",
@@ -359,16 +382,18 @@ pcall(function()
     })
     print("[Airi Hub] Visuals tab populated!")
 end)
+if not visualsSuccess then warn("[Airi Hub] Visuals tab error: " .. tostring(visualsErr)) end
 
 -----------------------------------------
 -- SETTINGS TAB
 -----------------------------------------
 print("[Airi Hub] Populating Settings tab...")
-pcall(function()
+local settingsSuccess, settingsErr = pcall(function()
     Tabs.Settings:CreateSection("UI Settings")
     Tabs.Settings:BuildThemeSection()
     print("[Airi Hub] Settings tab populated!")
 end)
+if not settingsSuccess then warn("[Airi Hub] Settings tab error: " .. tostring(settingsErr)) end
 
 print("[Airi Hub] UI loaded successfully!")
 print("[Airi Hub] DIBUKA! Sukses meload UI.")
