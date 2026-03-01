@@ -40,27 +40,34 @@ print("[Airi Hub] Fetching Luna UI...")
 
 -- helper yang mencoba beberapa sumber termasuk file lokal
 local function fetchLuna()
+    -- coba file lokal terlebih dahulu (paling reliable)
+    local ok, localCode = pcall(readfile, "LUNA-LIB-UI/source.lua")
+    if ok and type(localCode) == "string" and #localCode > 0 then
+        local success, luaObj = pcall(loadstring, localCode)
+        if success and type(luaObj) == "function" then
+            local result = luaObj()
+            if type(result) == "table" then
+                return true, result
+            end
+        end
+    end
+
+    -- jika lokal gagal, coba dari GitHub
     local sources = {
-        "https://raw.githubusercontent.com/AmeloxRUS/guiluna/refs/heads/main/luna",
         "https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/refs/heads/master/source.lua",
+        "https://raw.githubusercontent.com/AmeloxRUS/guiluna/refs/heads/main/luna.lua",
     }
 
     for _, url in ipairs(sources) do
         local ok, code = pcall(game.HttpGet, game, url, true)
         if ok and type(code) == "string" and #code > 0 then
-            local compiled, luaObj = pcall(loadstring, code)
-            if compiled and type(luaObj) == "table" then
-                return true, luaObj
+            local success, luaObj = pcall(loadstring, code)
+            if success and type(luaObj) == "function" then
+                local result = luaObj()
+                if type(result) == "table" then
+                    return true, result
+                end
             end
-        end
-    end
-
-    -- coba file lokal jika executor mendukung readfile
-    if pcall(readfile, "LUNA-LIB-UI/source.lua") then
-        local localCode = readfile("LUNA-LIB-UI/source.lua")
-        local compiled, luaObj = pcall(loadstring, localCode)
-        if compiled and type(luaObj) == "table" then
-            return true, luaObj
         end
     end
 
