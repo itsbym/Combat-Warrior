@@ -110,6 +110,188 @@ Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "settings", ImageSo
 
 Window:CreateHomeTab()
 
+-----------------------------------------
+-- COMBAT TAB
+-----------------------------------------
+print("[Airi Hub] Populating Combat tab...")
+pcall(function()
+    Tabs.Combat:CreateSection("Auto Parry Settings")
+    Tabs.Combat:CreateToggle({
+        Name = "Auto Parry",
+        CurrentValue = getgenv().AiriConfig.AutoParry,
+        Flag = "AutoParryToggle",
+        Callback = function(state) getgenv().AiriConfig.AutoParry = state end
+    })
+    
+    Tabs.Combat:CreateSlider({
+        Name = "Auto Parry Range",
+        Range = {5, 30},
+        Increment = 1,
+        CurrentValue = getgenv().AiriConfig.ParryRange,
+        Flag = "AutoParryRangeSlider",
+        Callback = function(value) getgenv().AiriConfig.ParryRange = value end
+    })
+    
+    Tabs.Combat:CreateSection("Combat Assist")
+    Tabs.Combat:CreateToggle({
+        Name = "Anti Parry",
+        CurrentValue = getgenv().AiriConfig.AntiParry,
+        Flag = "AntiParryToggle",
+        Callback = function(state) getgenv().AiriConfig.AntiParry = state end
+    })
+    
+    Tabs.Combat:CreateToggle({
+        Name = "Hitbox Expander",
+        CurrentValue = getgenv().AiriConfig.HitboxExpander,
+        Flag = "HitboxExpanderToggle",
+        Callback = function(state) getgenv().AiriConfig.HitboxExpander = state end
+    })
+    
+    Tabs.Combat:CreateSlider({
+        Name = "Hitbox Size",
+        Range = {0.1, 10},
+        Increment = 0.1,
+        CurrentValue = getgenv().AiriConfig.HitboxSize,
+        Flag = "HitboxSizeSlider",
+        Callback = function(value) getgenv().AiriConfig.HitboxSize = value end
+    })
+    print("[Airi Hub] Combat tab populated!")
+end)
+
+-----------------------------------------
+-- MOVEMENT TAB
+-----------------------------------------
+print("[Airi Hub] Populating Movement tab...")
+pcall(function()
+    Tabs.Movement:CreateSection("Stamina & Cooldowns")
+    Tabs.Movement:CreateToggle({
+        Name = "Infinite Stamina",
+        CurrentValue = getgenv().AiriConfig.InfStamina,
+        Flag = "InfStaminaToggle",
+        Callback = function(state) getgenv().AiriConfig.InfStamina = state end
+    })
+    
+    Tabs.Movement:CreateToggle({
+        Name = "No Jump Delay",
+        CurrentValue = getgenv().AiriConfig.NoJumpDelay,
+        Flag = "NoJumpDelayToggle",
+        Callback = function(state) getgenv().AiriConfig.NoJumpDelay = state end
+    })
+    
+    Tabs.Movement:CreateToggle({
+        Name = "No Dodge Delay",
+        CurrentValue = getgenv().AiriConfig.NoDodgeDelay,
+        Flag = "NoDodgeDelayToggle",
+        Callback = function(state) getgenv().AiriConfig.NoDodgeDelay = state end
+    })
+    print("[Airi Hub] Movement tab populated!")
+end)
+
+-----------------------------------------
+-- VISUALS TAB (ESP & AIMBOT)
+-----------------------------------------
+print("[Airi Hub] Populating Visuals tab...")
+pcall(function()
+    Tabs.Visuals:CreateSection("ESP Settings")
+    Tabs.Visuals:CreateToggle({
+        Name = "Enable ESP",
+        CurrentValue = getgenv().AiriConfig.ESPEnabled,
+        Flag = "ESPToggle",
+        Callback = function(state)
+            getgenv().AiriConfig.ESPEnabled = state
+            if VisualsModule and VisualsModule.ToggleESP then pcall(VisualsModule.ToggleESP, state) end
+        end
+    })
+    
+    Tabs.Visuals:CreateDropdown({
+        Name = "ESP Box Style",
+        Options = {"Corner", "Normal", "3D"},
+        CurrentValue = getgenv().AiriConfig.ESPBoxStyle,
+        Flag = "ESPBoxStyleDropdown",
+        Callback = function(value)
+            getgenv().AiriConfig.ESPBoxStyle = value
+            if VisualsModule and VisualsModule.SetBox then pcall(VisualsModule.SetBox, getgenv().AiriConfig.ESPBox, value) end
+        end
+    })
+    
+    Tabs.Visuals:CreateToggle({
+        Name = "ESP Box",
+        CurrentValue = getgenv().AiriConfig.ESPBox,
+        Flag = "ESPBoxToggle",
+        Callback = function(state)
+            getgenv().AiriConfig.ESPBox = state
+            if VisualsModule and VisualsModule.SetBox then pcall(VisualsModule.SetBox, state, getgenv().AiriConfig.ESPBoxStyle) end
+        end
+    })
+    
+    Tabs.Visuals:CreateToggle({
+        Name = "ESP Chams",
+        CurrentValue = getgenv().AiriConfig.ESPChams,
+        Flag = "ESPChamsToggle",
+        Callback = function(state)
+            getgenv().AiriConfig.ESPChams = state
+            if VisualsModule and VisualsModule.SetChams then pcall(VisualsModule.SetChams, state) end
+        end
+    })
+    
+    Tabs.Visuals:CreateToggle({
+        Name = "ESP Skeleton",
+        CurrentValue = getgenv().AiriConfig.ESPSkeleton,
+        Flag = "ESPSkeletonToggle",
+        Callback = function(state)
+            getgenv().AiriConfig.ESPSkeleton = state
+            if VisualsModule and VisualsModule.SetSkeleton then pcall(VisualsModule.SetSkeleton, state) end
+        end
+    })
+    
+    Tabs.Visuals:CreateToggle({
+        Name = "ESP Tracers",
+        CurrentValue = getgenv().AiriConfig.ESPTracers,
+        Flag = "ESPTracersToggle",
+        Callback = function(state)
+            getgenv().AiriConfig.ESPTracers = state
+            if VisualsModule and VisualsModule.SetTracers then pcall(VisualsModule.SetTracers, state) end
+        end
+    })
+    
+    Tabs.Visuals:CreateSection("Aimbot Settings")
+    Tabs.Visuals:CreateToggle({
+        Name = "Enable Aimbot (Hold RMB)",
+        CurrentValue = getgenv().AiriConfig.AimbotEnabled,
+        Flag = "AimbotToggle",
+        Callback = function(state) getgenv().AiriConfig.AimbotEnabled = state end
+    })
+    
+    Tabs.Visuals:CreateSlider({
+        Name = "Aimbot Smoothness",
+        Range = {0, 1},
+        Increment = 0.1,
+        CurrentValue = getgenv().AiriConfig.AimbotSmooth,
+        Flag = "AimbotSmoothSlider",
+        Callback = function(value) getgenv().AiriConfig.AimbotSmooth = value end
+    })
+    
+    Tabs.Visuals:CreateSlider({
+        Name = "Aimbot FOV",
+        Range = {0, 500},
+        Increment = 1,
+        CurrentValue = getgenv().AiriConfig.AimbotFOV,
+        Flag = "AimbotFOVSlider",
+        Callback = function(value) getgenv().AiriConfig.AimbotFOV = value end
+    })
+    print("[Airi Hub] Visuals tab populated!")
+end)
+
+-----------------------------------------
+-- SETTINGS TAB
+-----------------------------------------
+print("[Airi Hub] Populating Settings tab...")
+pcall(function()
+    Tabs.Settings:CreateSection("UI Settings")
+    Tabs.Settings:BuildThemeSection()
+    print("[Airi Hub] Settings tab populated!")
+end)
+
 print("[Airi Hub] UI loaded successfully. Loading modules in background...")
 
 -- Fungsi Helper untuk Load Module (DENGAN ANTI-CACHE / BYPASS CACHE GITHUB)
@@ -144,172 +326,6 @@ local VisualsModule = loadModule("visual")
 print("[Airi Hub] VisualsModule loaded: " .. tostring(VisualsModule ~= nil))
 
 print("[Airi Hub] All modules loading complete.")
-
------------------------------------------
--- COMBAT TAB
------------------------------------------
-Tabs.Combat:CreateSection("Auto Parry Settings")
-Tabs.Combat:CreateToggle({
-    Name = "Auto Parry",
-    CurrentValue = getgenv().AiriConfig.AutoParry,
-    Flag = "AutoParryToggle",
-    Callback = function(state) getgenv().AiriConfig.AutoParry = state end
-})
-
-Tabs.Combat:CreateSlider({
-    Name = "Auto Parry Range",
-    Range = {5, 30},
-    Increment = 1,
-    CurrentValue = getgenv().AiriConfig.ParryRange,
-    Flag = "AutoParryRangeSlider",
-    Callback = function(value) getgenv().AiriConfig.ParryRange = value end
-})
-
-Tabs.Combat:CreateSection("Combat Assist")
-Tabs.Combat:CreateToggle({
-    Name = "Anti Parry",
-    CurrentValue = getgenv().AiriConfig.AntiParry,
-    Flag = "AntiParryToggle",
-    Callback = function(state) getgenv().AiriConfig.AntiParry = state end
-})
-
-Tabs.Combat:CreateToggle({
-    Name = "Hitbox Expander",
-    CurrentValue = getgenv().AiriConfig.HitboxExpander,
-    Flag = "HitboxExpanderToggle",
-    Callback = function(state) getgenv().AiriConfig.HitboxExpander = state end
-})
-
-Tabs.Combat:CreateSlider({
-    Name = "Hitbox Size",
-    Range = {0.1, 10},
-    Increment = 0.1,
-    CurrentValue = getgenv().AiriConfig.HitboxSize,
-    Flag = "HitboxSizeSlider",
-    Callback = function(value) getgenv().AiriConfig.HitboxSize = value end
-})
-
------------------------------------------
--- MOVEMENT TAB
------------------------------------------
-Tabs.Movement:CreateSection("Stamina & Cooldowns")
-Tabs.Movement:CreateToggle({
-    Name = "Infinite Stamina",
-    CurrentValue = getgenv().AiriConfig.InfStamina,
-    Flag = "InfStaminaToggle",
-    Callback = function(state) getgenv().AiriConfig.InfStamina = state end
-})
-
-Tabs.Movement:CreateToggle({
-    Name = "No Jump Delay",
-    CurrentValue = getgenv().AiriConfig.NoJumpDelay,
-    Flag = "NoJumpDelayToggle",
-    Callback = function(state) getgenv().AiriConfig.NoJumpDelay = state end
-})
-
-Tabs.Movement:CreateToggle({
-    Name = "No Dodge Delay",
-    CurrentValue = getgenv().AiriConfig.NoDodgeDelay,
-    Flag = "NoDodgeDelayToggle",
-    Callback = function(state) getgenv().AiriConfig.NoDodgeDelay = state end
-})
-
------------------------------------------
--- VISUALS TAB (ESP & AIMBOT)
------------------------------------------
-Tabs.Visuals:CreateSection("ESP Settings")
-Tabs.Visuals:CreateToggle({
-    Name = "Enable ESP",
-    CurrentValue = getgenv().AiriConfig.ESPEnabled,
-    Flag = "ESPToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.ESPEnabled = state
-        if VisualsModule and VisualsModule.ToggleESP then pcall(VisualsModule.ToggleESP, state) end
-    end
-})
-
-Tabs.Visuals:CreateDropdown({
-    Name = "ESP Box Style",
-    Options = {"Corner", "Normal", "3D"},
-    CurrentValue = getgenv().AiriConfig.ESPBoxStyle,
-    Flag = "ESPBoxStyleDropdown",
-    Callback = function(value)
-        getgenv().AiriConfig.ESPBoxStyle = value
-        if VisualsModule and VisualsModule.SetBox then pcall(VisualsModule.SetBox, getgenv().AiriConfig.ESPBox, value) end
-    end
-})
-
-Tabs.Visuals:CreateToggle({
-    Name = "ESP Box",
-    CurrentValue = getgenv().AiriConfig.ESPBox,
-    Flag = "ESPBoxToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.ESPBox = state
-        if VisualsModule and VisualsModule.SetBox then pcall(VisualsModule.SetBox, state, getgenv().AiriConfig.ESPBoxStyle) end
-    end
-})
-
-Tabs.Visuals:CreateToggle({
-    Name = "ESP Chams",
-    CurrentValue = getgenv().AiriConfig.ESPChams,
-    Flag = "ESPChamsToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.ESPChams = state
-        if VisualsModule and VisualsModule.SetChams then pcall(VisualsModule.SetChams, state) end
-    end
-})
-
-Tabs.Visuals:CreateToggle({
-    Name = "ESP Skeleton",
-    CurrentValue = getgenv().AiriConfig.ESPSkeleton,
-    Flag = "ESPSkeletonToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.ESPSkeleton = state
-        if VisualsModule and VisualsModule.SetSkeleton then pcall(VisualsModule.SetSkeleton, state) end
-    end
-})
-
-Tabs.Visuals:CreateToggle({
-    Name = "ESP Tracers",
-    CurrentValue = getgenv().AiriConfig.ESPTracers,
-    Flag = "ESPTracersToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.ESPTracers = state
-        if VisualsModule and VisualsModule.SetTracers then pcall(VisualsModule.SetTracers, state) end
-    end
-})
-
-Tabs.Visuals:CreateSection("Aimbot Settings")
-Tabs.Visuals:CreateToggle({
-    Name = "Enable Aimbot (Hold RMB)",
-    CurrentValue = getgenv().AiriConfig.AimbotEnabled,
-    Flag = "AimbotToggle",
-    Callback = function(state) getgenv().AiriConfig.AimbotEnabled = state end
-})
-
-Tabs.Visuals:CreateSlider({
-    Name = "Aimbot Smoothness",
-    Range = {0, 1},
-    Increment = 0.1,
-    CurrentValue = getgenv().AiriConfig.AimbotSmooth,
-    Flag = "AimbotSmoothSlider",
-    Callback = function(value) getgenv().AiriConfig.AimbotSmooth = value end
-})
-
-Tabs.Visuals:CreateSlider({
-    Name = "Aimbot FOV",
-    Range = {0, 500},
-    Increment = 1,
-    CurrentValue = getgenv().AiriConfig.AimbotFOV,
-    Flag = "AimbotFOVSlider",
-    Callback = function(value) getgenv().AiriConfig.AimbotFOV = value end
-})
-
------------------------------------------
--- SETTINGS TAB
------------------------------------------
-Tabs.Settings:CreateSection("UI Settings")
-Tabs.Settings:BuildThemeSection()
 
 -----------------------------------------
 -- INITIALIZE MODULES
