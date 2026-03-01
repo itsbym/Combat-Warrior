@@ -44,8 +44,148 @@ end
 local embeddedModules = {
     antidetect = function()
         local AntiDetectModule = {}
-        function AntiDetectModule.Init() print("[Airi Hub] Anti-Detect V2 Ready.") end
-        function AntiDetectModule.Unload() end
+
+        -- Variables untuk menampung referensi objek dari GC Sweep
+        local sweepDone = false
+        local acTables = {}
+        local acFunctions = {}
+
+        -- Variabel untuk menyimpan hooks lama
+        local oldNamecall
+        local oldIndex
+        local oldGetLogHistory
+        local errConn
+
+        function AntiDetectModule.Init()
+            print("[Airi Hub] Initializing Anti-Detect V2...")
+
+            -- 1. Single-Sweep Dynamic GC (Structure-based)
+            if not sweepDone then
+                local function doSweep()
+                    local gc = getgc(true)
+                    for _, obj in ipairs(gc) do
+                        if type(obj) == "table" then
+                            -- Deteksi tabel AntiCheat berdasarkan propertinya, bukan namanya
+                            if rawget(obj, "disabledCounts") or rawget(obj, "network") or rawget(obj, "remote") then
+                                table.insert(acTables, obj)
+                            end
+                        elseif type(obj) == "function" then
+                            local info = debug.getinfo(obj)
+                            if info and info.name and (info.name:lower():match("ban") or info.name:lower():match("kick") or info.name:lower():match("crash")) then
+                                table.insert(acFunctions, obj)
+                            end
+                        end
+                    end
+                end
+
+                -- Jalankan sweep dengan aman
+                pcall(doSweep)
+                sweepDone = true
+                print("[Airi Hub] GC Sweep complete. Ditemukan " .. #acTables .. " tabel mencurigakan & " .. #acFunctions .. " fungsi mencurigakan.")
+            end
+
+            -- 2 & 3. Metamethod Guarding (__namecall / __index) & Advanced Anti-Remote Logging
+            local mt = getrawmetatable(game)
+            setreadonly(mt, false)
+
+            oldNamecall = mt.__namecall
+            mt.__namecall = newcclosure(function(self, ...)
+                local method = getnamecallmethod()
+                local args = {...}
+
+                if not checkcaller() then
+                    -- Pemanggilan berasal dari game script (Anti-Cheat)
+
+                    -- Mencegat pemanggilan CollectionService:HasTag untuk mendeteksi pergerakan tidak wajar
+                    if self == game:GetService("CollectionService") and method == "HasTag" then
+                        if args[1] == "BodyMover" or args[1] == "SuspiciousMovement" then
+                            return false -- Spoof nilai false agar dikira aman
+                        end
+                    end
+
+                    -- Mencegah Anti-Cheat memeriksa apa yang kita ubah di dalam instans tertentu
+                    if self == game:GetService("CoreGui") and (method == "FindFirstChild" or method == "GetChildren") then
+                        -- Beberapa executor menyimpan UI di CoreGui, kita bisa spoofing hasilnya di sini jika perlu
+                        -- Untuk saat ini, kita biarkan aslinya, atau filter nama spesifik.
+                    end
+                end
+
+                return oldNamecall(self, ...)
+            end)
+
+            oldIndex = mt.__index
+            mt.__index = newcclosure(function(self, idx)
+                if not checkcaller() then
+                    -- Pemanggilan dari game script
+                    -- Blokir pencarian index yang sensitif jika diperlukan
+                end
+                return oldIndex(self, idx)
+            end)
+
+            setreadonly(mt, true)
+
+            -- 4. ScriptContext & Crash Log Muting (Gag Order)
+            local LogService = game:GetService("LogService")
+            local ScriptContext = game:GetService("ScriptContext")
+
+            -- Hook LogService:GetLogHistory() agar developer tidak bisa melihat error executor
+            if hookfunction then
+                pcall(function()
+                    oldGetLogHistory = hookfunction(LogService.GetLogHistory, newcclosure(function(self)
+                        local history = oldGetLogHistory(self)
+                        local cleanHistory = {}
+                        for _, log in ipairs(history) do
+                            local msg = string.lower(log.message)
+                            -- Jika log mengandung kata kunci script kita, buang dari history
+                            if not (string.match(msg, "airi hub") or string.match(msg, "executor") or string.match(msg, "getgc") or string.match(msg, "hookfunction")) then
+                                table.insert(cleanHistory, log)
+                            end
+                        end
+                        return cleanHistory
+                    end))
+                end)
+            end
+
+            -- Mute error agar tidak dikirim lewat webhook oleh game
+            errConn = ScriptContext.Error:Connect(function(message, trace, script)
+                local msg = string.lower(message)
+                local trc = string.lower(trace)
+
+                -- Jika errornya karena script kita
+                if string.match(msg, "airi") or string.match(trc, "airi") or string.match(trc, "executor") then
+                    -- Menghapus console output client (hanya bekerja di beberapa executor)
+                    if clearconsole then
+                        clearconsole()
+                    end
+                end
+            end)
+
+            print("[Airi Hub] Anti-Detect V2 Ready.")
+        end
+
+        function AntiDetectModule.Unload()
+            if errConn then
+                errConn:Disconnect()
+                errConn = nil
+            end
+
+            local mt = getrawmetatable(game)
+            if mt then
+                setreadonly(mt, false)
+                if oldNamecall then mt.__namecall = oldNamecall end
+                if oldIndex then mt.__index = oldIndex end
+                setreadonly(mt, true)
+            end
+
+            if hookfunction and oldGetLogHistory then
+                pcall(function()
+                    hookfunction(game:GetService("LogService").GetLogHistory, oldGetLogHistory)
+                end)
+            end
+
+            print("[Airi Hub] Anti-Detect V2 Unloaded.")
+        end
+
         return AntiDetectModule
     end,
     combat = function()
