@@ -110,6 +110,40 @@ Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "settings_phone", I
 
 Window:CreateHomeTab()
 
+print("[Airi Hub] Loading modules before populating tabs...")
+
+-- Fungsi Helper untuk Load Module (DENGAN ANTI-CACHE / BYPASS CACHE GITHUB)
+local function loadModule(name)
+    local url = "https://raw.githubusercontent.com/itsbym/Combat-Warrior/main/modules/" .. name .. ".lua?t=" .. tostring(tick())
+    
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet(url))()
+    end)
+    
+    if success then
+        print("[Airi Hub] Successfully loaded module: " .. name)
+        return result
+    else
+        warn("[Airi Hub] FATAL ERROR on module '" .. name .. "': " .. tostring(result))
+        return nil
+    end
+end
+
+-- Load modules FIRST (before tab content so callbacks can reference them)
+local AntiDetectModule = loadModule("antidetect")
+print("[Airi Hub] AntiDetectModule loaded: " .. tostring(AntiDetectModule ~= nil))
+
+local CombatModule = loadModule("combat")
+print("[Airi Hub] CombatModule loaded: " .. tostring(CombatModule ~= nil))
+
+local MovementModule = loadModule("movement")
+print("[Airi Hub] MovementModule loaded: " .. tostring(MovementModule ~= nil))
+
+local VisualsModule = loadModule("visual")
+print("[Airi Hub] VisualsModule loaded: " .. tostring(VisualsModule ~= nil))
+
+print("[Airi Hub] All modules loaded. Now populating tabs...")
+
 -----------------------------------------
 -- COMBAT TAB
 -----------------------------------------
@@ -199,7 +233,15 @@ pcall(function()
         Flag = "ESPToggle",
         Callback = function(state)
             getgenv().AiriConfig.ESPEnabled = state
-            if VisualsModule and VisualsModule.ToggleESP then pcall(VisualsModule.ToggleESP, state) end
+            print("[Airi Hub] ESP Toggle: " .. tostring(state))
+            print("[Airi Hub] VisualsModule available: " .. tostring(VisualsModule ~= nil))
+            if VisualsModule then
+                print("[Airi Hub] VisualsModule.ToggleESP available: " .. tostring(VisualsModule.ToggleESP ~= nil))
+                if VisualsModule.ToggleESP then 
+                    local ok, err = pcall(VisualsModule.ToggleESP, state)
+                    if not ok then warn("[Airi Hub] ToggleESP Error: " .. tostring(err)) end
+                end
+            end
         end
     })
     
@@ -209,8 +251,12 @@ pcall(function()
         CurrentValue = getgenv().AiriConfig.ESPBoxStyle,
         Flag = "ESPBoxStyleDropdown",
         Callback = function(value)
+            print("[Airi Hub] ESP Box Style changed to: " .. tostring(value))
             getgenv().AiriConfig.ESPBoxStyle = value
-            if VisualsModule and VisualsModule.SetBox then pcall(VisualsModule.SetBox, getgenv().AiriConfig.ESPBox, value) end
+            if VisualsModule and VisualsModule.SetBox then 
+                local ok, err = pcall(VisualsModule.SetBox, getgenv().AiriConfig.ESPBox, value)
+                if not ok then warn("[Airi Hub] SetBox Error: " .. tostring(err)) end
+            end
         end
     })
     
@@ -219,8 +265,12 @@ pcall(function()
         CurrentValue = getgenv().AiriConfig.ESPBox,
         Flag = "ESPBoxToggle",
         Callback = function(state)
+            print("[Airi Hub] ESP Box Toggle: " .. tostring(state))
             getgenv().AiriConfig.ESPBox = state
-            if VisualsModule and VisualsModule.SetBox then pcall(VisualsModule.SetBox, state, getgenv().AiriConfig.ESPBoxStyle) end
+            if VisualsModule and VisualsModule.SetBox then 
+                local ok, err = pcall(VisualsModule.SetBox, state, getgenv().AiriConfig.ESPBoxStyle)
+                if not ok then warn("[Airi Hub] SetBox Error: " .. tostring(err)) end
+            end
         end
     })
     
@@ -229,8 +279,12 @@ pcall(function()
         CurrentValue = getgenv().AiriConfig.ESPChams,
         Flag = "ESPChamsToggle",
         Callback = function(state)
+            print("[Airi Hub] ESP Chams Toggle: " .. tostring(state))
             getgenv().AiriConfig.ESPChams = state
-            if VisualsModule and VisualsModule.SetChams then pcall(VisualsModule.SetChams, state) end
+            if VisualsModule and VisualsModule.SetChams then 
+                local ok, err = pcall(VisualsModule.SetChams, state)
+                if not ok then warn("[Airi Hub] SetChams Error: " .. tostring(err)) end
+            end
         end
     })
     
@@ -239,8 +293,12 @@ pcall(function()
         CurrentValue = getgenv().AiriConfig.ESPSkeleton,
         Flag = "ESPSkeletonToggle",
         Callback = function(state)
+            print("[Airi Hub] ESP Skeleton Toggle: " .. tostring(state))
             getgenv().AiriConfig.ESPSkeleton = state
-            if VisualsModule and VisualsModule.SetSkeleton then pcall(VisualsModule.SetSkeleton, state) end
+            if VisualsModule and VisualsModule.SetSkeleton then 
+                local ok, err = pcall(VisualsModule.SetSkeleton, state)
+                if not ok then warn("[Airi Hub] SetSkeleton Error: " .. tostring(err)) end
+            end
         end
     })
     
@@ -249,8 +307,12 @@ pcall(function()
         CurrentValue = getgenv().AiriConfig.ESPTracers,
         Flag = "ESPTracersToggle",
         Callback = function(state)
+            print("[Airi Hub] ESP Tracers Toggle: " .. tostring(state))
             getgenv().AiriConfig.ESPTracers = state
-            if VisualsModule and VisualsModule.SetTracers then pcall(VisualsModule.SetTracers, state) end
+            if VisualsModule and VisualsModule.SetTracers then 
+                local ok, err = pcall(VisualsModule.SetTracers, state)
+                if not ok then warn("[Airi Hub] SetTracers Error: " .. tostring(err)) end
+            end
         end
     })
     
@@ -292,40 +354,7 @@ pcall(function()
     print("[Airi Hub] Settings tab populated!")
 end)
 
-print("[Airi Hub] UI loaded successfully. Loading modules in background...")
-
--- Fungsi Helper untuk Load Module (DENGAN ANTI-CACHE / BYPASS CACHE GITHUB)
-local function loadModule(name)
-    local url = "https://raw.githubusercontent.com/itsbym/Combat-Warrior/main/modules/" .. name .. ".lua?t=" .. tostring(tick())
-    
-    local success, result = pcall(function()
-        return loadstring(game:HttpGet(url))()
-    end)
-    
-    if success then
-        print("[Airi Hub] Successfully loaded module: " .. name)
-        return result
-    else
-        warn("[Airi Hub] FATAL ERROR on module '" .. name .. "': " .. tostring(result))
-        return nil
-    end
-end
-
--- Load Modules (non-blocking, after UI is ready)
-print("[Airi Hub] Loading modules...")
-local AntiDetectModule = loadModule("antidetect")
-print("[Airi Hub] AntiDetectModule loaded: " .. tostring(AntiDetectModule ~= nil))
-
-local CombatModule = loadModule("combat")
-print("[Airi Hub] CombatModule loaded: " .. tostring(CombatModule ~= nil))
-
-local MovementModule = loadModule("movement")
-print("[Airi Hub] MovementModule loaded: " .. tostring(MovementModule ~= nil))
-
-local VisualsModule = loadModule("visual")
-print("[Airi Hub] VisualsModule loaded: " .. tostring(VisualsModule ~= nil))
-
-print("[Airi Hub] All modules loading complete.")
+print("[Airi Hub] UI loaded successfully. Tab callbacks now have access to modules...")
 
 -----------------------------------------
 -- INITIALIZE MODULES
