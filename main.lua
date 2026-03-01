@@ -10,41 +10,7 @@ getgenv().AiriConfig = getgenv().AiriConfig or {
 }
 local Config = getgenv().AiriConfig
 
--- Fungsi Helper untuk Load Module (DENGAN ANTI-CACHE / BYPASS CACHE GITHUB)
-local function loadModule(name)
-    -- Tambahkan ?t=tick() agar executor selalu mengambil versi terbaru dari Github, bukan versi nyangkut
-    local url = "https://raw.githubusercontent.com/itsbym/Combat-Warrior/main/modules/" .. name .. ".lua?t=" .. tostring(tick())
-    
-    local success, result = pcall(function()
-        return loadstring(game:HttpGet(url))()
-    end)
-    
-    if success then
-        print("[Airi Hub] Successfully loaded module: " .. name)
-        return result
-    else
-        warn("[Airi Hub] FATAL ERROR on module '" .. name .. "': " .. tostring(result))
-        return nil
-    end
-end
-
 print("[Airi Hub] Starting Engine...")
-
--- Load Modules
-print("[Airi Hub] Loading modules...")
-local AntiDetectModule = loadModule("antidetect")
-print("[Airi Hub] AntiDetectModule loaded: " .. tostring(AntiDetectModule ~= nil))
-
-local CombatModule = loadModule("combat")
-print("[Airi Hub] CombatModule loaded: " .. tostring(CombatModule ~= nil))
-
-local MovementModule = loadModule("movement")
-print("[Airi Hub] MovementModule loaded: " .. tostring(MovementModule ~= nil))
-
-local VisualsModule = loadModule("visual")
-print("[Airi Hub] VisualsModule loaded: " .. tostring(VisualsModule ~= nil))
-
-print("[Airi Hub] All modules loading complete. Fetching Luna UI...")
 
 -- helper yang mencoba beberapa sumber termasuk file lokal
 local function fetchLuna()
@@ -105,6 +71,7 @@ local function fetchLuna()
     return false, "semua sumber gagal dimuat"
 end
 
+print("[Airi Hub] Fetching Luna UI...")
 local successUI, Luna = fetchLuna()
 if not successUI or type(Luna) ~= "table" then
     warn("[Airi Hub] UI gagal dimuat! Error: " .. tostring(Luna))
@@ -121,7 +88,7 @@ local Window = Luna:CreateWindow({
     LoadingTitle = "Airi Hub Interface",
     LoadingSubtitle = "Loading Modules...",
     KeySystem = false,
-    Color = Color3.fromRGB(191, 64, 191) -- Tema warna ungu
+    Color = Color3.fromRGB(191, 64, 191)
 })
 
 if not Window then
@@ -129,7 +96,6 @@ if not Window then
     return
 end
 
--- Fix for Luna UI visibility issue: ensure Elements container is visible
 pcall(function()
     if Window and Window.Elements and Window.Elements.Parent then
         Window.Elements.Parent.Visible = true
@@ -143,6 +109,41 @@ Tabs.Visuals = Window:CreateTab({ Name = "Visuals", Icon = "visibility", ImageSo
 Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "settings", ImageSource = "Material", ShowTitle = true })
 
 Window:CreateHomeTab()
+
+print("[Airi Hub] UI loaded successfully. Loading modules in background...")
+
+-- Fungsi Helper untuk Load Module (DENGAN ANTI-CACHE / BYPASS CACHE GITHUB)
+local function loadModule(name)
+    local url = "https://raw.githubusercontent.com/itsbym/Combat-Warrior/main/modules/" .. name .. ".lua?t=" .. tostring(tick())
+    
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet(url))()
+    end)
+    
+    if success then
+        print("[Airi Hub] Successfully loaded module: " .. name)
+        return result
+    else
+        warn("[Airi Hub] FATAL ERROR on module '" .. name .. "': " .. tostring(result))
+        return nil
+    end
+end
+
+-- Load Modules (non-blocking, after UI is ready)
+print("[Airi Hub] Loading modules...")
+local AntiDetectModule = loadModule("antidetect")
+print("[Airi Hub] AntiDetectModule loaded: " .. tostring(AntiDetectModule ~= nil))
+
+local CombatModule = loadModule("combat")
+print("[Airi Hub] CombatModule loaded: " .. tostring(CombatModule ~= nil))
+
+local MovementModule = loadModule("movement")
+print("[Airi Hub] MovementModule loaded: " .. tostring(MovementModule ~= nil))
+
+local VisualsModule = loadModule("visual")
+print("[Airi Hub] VisualsModule loaded: " .. tostring(VisualsModule ~= nil))
+
+print("[Airi Hub] All modules loading complete.")
 
 -----------------------------------------
 -- COMBAT TAB
