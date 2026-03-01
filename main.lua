@@ -103,10 +103,10 @@ pcall(function()
 end)
 
 local Tabs = {}
-Tabs.Combat = Window:CreateTab({ Name = "Combat", Icon = "swords", ImageSource = "Lucide", ShowTitle = true })
-Tabs.Movement = Window:CreateTab({ Name = "Movement", Icon = "person", ImageSource = "Material", ShowTitle = true })
-Tabs.Visuals = Window:CreateTab({ Name = "Visuals", Icon = "visibility", ImageSource = "Material", ShowTitle = true })
-Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "settings", ImageSource = "Material", ShowTitle = true })
+Tabs.Combat = Window:CreateTab({ Name = "Combat", Icon = "code", ImageSource = "Material", ShowTitle = true })
+Tabs.Movement = Window:CreateTab({ Name = "Movement", Icon = "group_work", ImageSource = "Material", ShowTitle = true })
+Tabs.Visuals = Window:CreateTab({ Name = "Visuals", Icon = "list", ImageSource = "Material", ShowTitle = true })
+Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "settings_phone", ImageSource = "Material", ShowTitle = true })
 
 Window:CreateHomeTab()
 
