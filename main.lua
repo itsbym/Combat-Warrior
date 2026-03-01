@@ -65,8 +65,10 @@ local embeddedModules = {
         local VisualsModule = {}
         local RunService = game:GetService("RunService")
         local Players = game:GetService("Players")
-        local Camera = workspace.CurrentCamera
         local Drawings = {}
+
+        -- Global Connections for cleanup
+        getgenv().AiriVisualConnections = getgenv().AiriVisualConnections or {}
 
         local function createDrawings()
             if not Drawing then return nil end
@@ -77,24 +79,53 @@ local embeddedModules = {
             }
         end
 
+        local function removeDrawings(player)
+            if Drawings[player] then
+                for _, drawingObj in pairs(Drawings[player]) do
+                    drawingObj:Remove()
+                end
+                Drawings[player] = nil
+            end
+        end
+
         function VisualsModule.Init()
             print("[Airi Hub] Native ESP Loaded.")
-            RunService.RenderStepped:Connect(function()
+
+            -- Disconnect existing connections if any
+            if getgenv().AiriVisualConnections.RenderStepped then
+                getgenv().AiriVisualConnections.RenderStepped:Disconnect()
+            end
+            if getgenv().AiriVisualConnections.PlayerRemoving then
+                getgenv().AiriVisualConnections.PlayerRemoving:Disconnect()
+            end
+
+            -- Clean up old drawings if any
+            for player, _ in pairs(Drawings) do
+                removeDrawings(player)
+            end
+
+            getgenv().AiriVisualConnections.PlayerRemoving = Players.PlayerRemoving:Connect(function(player)
+                removeDrawings(player)
+            end)
+
+            getgenv().AiriVisualConnections.RenderStepped = RunService.RenderStepped:Connect(function()
                 local cfg = getgenv().AiriConfig
-                
+                local Camera = workspace.CurrentCamera -- Always get latest camera
+
                 for _, player in ipairs(Players:GetPlayers()) do
                     if player ~= Players.LocalPlayer then
                         if not Drawings[player] and Drawing then
                             Drawings[player] = createDrawings()
                         end
-                        
+
                         local d = Drawings[player]
                         if d then
                             local char = player.Character
+                            -- Robust check
                             if cfg.ESPEnabled and char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
                                 local hrp = char.HumanoidRootPart
                                 local vector, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-                                
+
                                 if onScreen then
                                     if cfg.ESPBox then
                                         d.Box.Visible = true
@@ -123,7 +154,7 @@ local embeddedModules = {
                                     if cfg.ESPNames then
                                         d.Name.Visible = true
                                         d.Name.Text = player.Name
-                                        d.Name.Position = Vector2.new(vector.X, vector.Y - (d.Box.Size.Y / 2) - 15)
+                                        d.Name.Position = Vector2.new(vector.X, vector.Y - (d.Box.Size and d.Box.Size.Y / 2 or 100) - 15)
                                         d.Name.Color = Color3.fromRGB(255, 255, 255)
                                         d.Name.Size = 16
                                         d.Name.Center = true
@@ -145,6 +176,23 @@ local embeddedModules = {
                     end
                 end
             end)
+        end
+
+        function VisualsModule.Unload()
+            if getgenv().AiriVisualConnections then
+                if getgenv().AiriVisualConnections.RenderStepped then
+                    getgenv().AiriVisualConnections.RenderStepped:Disconnect()
+                end
+                if getgenv().AiriVisualConnections.PlayerRemoving then
+                    getgenv().AiriVisualConnections.PlayerRemoving:Disconnect()
+                end
+                getgenv().AiriVisualConnections = {}
+            end
+
+            for player, _ in pairs(Drawings) do
+                removeDrawings(player)
+            end
+            print("[Airi Hub] Native ESP Unloaded.")
         end
         
         -- Proxy functions
