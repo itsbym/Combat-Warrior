@@ -1,46 +1,20 @@
 -- Inisialisasi Global Config
 getgenv().AiriConfig = getgenv().AiriConfig or {
-    -- Combat & Parry
-    AutoParry = false,
-    AutoParryDelay = 0.1,
-    AntiParry = false,
-    UseSound = true,
-    UseAnimation = true,
-    ParryRange = 15,
-    HitboxExpander = false,
-    HitboxSize = 1,
-    HitboxPart = "HumanoidRootPart",
-    
-    -- Movement
-    InfStamina = false,
-    NoJumpDelay = false,
-    NoDodgeDelay = false,
-    NoFallDamage = true,
-    AntiRagdoll = false,
-    
-    -- Visuals (ESP)
-    ESPEnabled = false,
-    ESPOpacity = 1,
-    ESPBox = true,
-    ESPBoxStyle = "Normal",
-    ESPChams = false,
-    ESPSkeleton = false,
-    ESPTracers = false,
-    ESPNames = true,
-    ESPDistances = true,
-    ESPHealthBar = true,
-    
-    -- Aimbot
-    AimbotEnabled = false,
-    AimbotSmooth = 0.5,
-    AimbotFOV = 100,
-    ShowFOV = true
+    AutoParry = false, AutoParryDelay = 0.1, AntiParry = false,
+    UseSound = true, UseAnimation = true, ParryRange = 15,
+    HitboxExpander = false, HitboxSize = 1, HitboxPart = "HumanoidRootPart",
+    InfStamina = false, NoJumpDelay = false, NoDodgeDelay = false, NoFallDamage = true, AntiRagdoll = false,
+    ESPEnabled = false, ESPOpacity = 1, ESPBox = true, ESPBoxStyle = "Normal",
+    ESPChams = false, ESPSkeleton = false, ESPTracers = false, ESPNames = true, ESPDistances = true, ESPHealthBar = true,
+    AimbotEnabled = false, AimbotSmooth = 0.5, AimbotFOV = 100, ShowFOV = true
 }
 local Config = getgenv().AiriConfig
 
--- Fungsi Helper untuk Load Module dengan pcall
+-- Fungsi Helper untuk Load Module (DENGAN ANTI-CACHE / BYPASS CACHE GITHUB)
 local function loadModule(name)
-    local url = "https://raw.githubusercontent.com/itsbym/Combat-Warrior/main/modules/" .. name .. ".lua"
+    -- Tambahkan ?t=tick() agar executor selalu mengambil versi terbaru dari Github, bukan versi nyangkut
+    local url = "https://raw.githubusercontent.com/itsbym/Combat-Warrior/main/modules/" .. name .. ".lua?t=" .. tostring(tick())
+    
     local success, result = pcall(function()
         return loadstring(game:HttpGet(url))()
     end)
@@ -49,10 +23,12 @@ local function loadModule(name)
         print("[Airi Hub] Successfully loaded module: " .. name)
         return result
     else
-        warn("[Airi Hub] Failed to load module: " .. name .. " | Error: " .. tostring(result))
+        warn("[Airi Hub] FATAL ERROR on module '" .. name .. "': " .. tostring(result))
         return nil
     end
 end
+
+print("[Airi Hub] Starting Engine...")
 
 -- Load Modules
 local AntiDetectModule = loadModule("antidetect")
@@ -60,23 +36,44 @@ local CombatModule = loadModule("combat")
 local MovementModule = loadModule("movement")
 local VisualsModule = loadModule("visual")
 
--- Inisialisasi Luna UI dengan Link Resmi Github & Backup Link
-local successUI, Luna = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/refs/heads/master/source.lua", true))()
-end)
+print("[Airi Hub] Fetching Luna UI...")
 
-if not successUI or type(Luna) ~= "table" then
-    warn("[Airi Hub] Main UI link failed. Trying backup link...")
-    -- Backup Link jika link master Nebula down
-    successUI, Luna = pcall(function()
-        return loadstring(game:HttpGet("https://raw.githubusercontent.com/AmeloxRUS/guiluna/refs/heads/main/luna", true))()
-    end)
-    
-    if not successUI or type(Luna) ~= "table" then
-        warn("[Airi Hub] FATAL ERROR: Cannot load Luna UI Library. Check your internet connection or executor.")
-        return
+-- helper yang mencoba beberapa sumber termasuk file lokal
+local function fetchLuna()
+    local sources = {
+        "https://raw.githubusercontent.com/AmeloxRUS/guiluna/refs/heads/main/luna",
+        "https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/refs/heads/master/source.lua",
+    }
+
+    for _, url in ipairs(sources) do
+        local ok, code = pcall(game.HttpGet, game, url, true)
+        if ok and type(code) == "string" and #code > 0 then
+            local compiled, luaObj = pcall(loadstring, code)
+            if compiled and type(luaObj) == "table" then
+                return true, luaObj
+            end
+        end
     end
+
+    -- coba file lokal jika executor mendukung readfile
+    if pcall(readfile, "LUNA-LIB-UI/source.lua") then
+        local localCode = readfile("LUNA-LIB-UI/source.lua")
+        local compiled, luaObj = pcall(loadstring, localCode)
+        if compiled and type(luaObj) == "table" then
+            return true, luaObj
+        end
+    end
+
+    return false, "semua sumber gagal dimuat"
 end
+
+local successUI, Luna = fetchLuna()
+if not successUI or type(Luna) ~= "table" then
+    warn("[Airi Hub] UI gagal dimuat! Error: " .. tostring(Luna))
+    return
+end
+
+print("[Airi Hub] UI berhasil diunduh. Membangun Window...")
 
 local Window = Luna:CreateWindow({
     Name = "Combat Warriors | Airi Hub",
@@ -88,6 +85,18 @@ local Window = Luna:CreateWindow({
     KeySystem = false,
     Color = Color3.fromRGB(191, 64, 191) -- Tema warna ungu
 })
+
+if not Window then
+    warn("[Airi Hub] Gagal membuat jendela UI; objek Window nil")
+    return
+end
+
+-- Fix for Luna UI visibility issue: ensure Elements container is visible
+pcall(function()
+    if Window and Window.Elements and Window.Elements.Parent then
+        Window.Elements.Parent.Visible = true
+    end
+end)
 
 local Tabs = {}
 Tabs.Combat = Window:CreateTab({ Name = "Combat", Icon = "swords", ImageSource = "Lucide", ShowTitle = true })
@@ -103,12 +112,9 @@ Window:CreateHomeTab()
 Tabs.Combat:CreateSection("Auto Parry Settings")
 Tabs.Combat:CreateToggle({
     Name = "Auto Parry",
-    Description = "Automatically blocks incoming attacks.",
     CurrentValue = getgenv().AiriConfig.AutoParry,
     Flag = "AutoParryToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.AutoParry = state
-    end
+    Callback = function(state) getgenv().AiriConfig.AutoParry = state end
 })
 
 Tabs.Combat:CreateSlider({
@@ -117,9 +123,7 @@ Tabs.Combat:CreateSlider({
     Increment = 1,
     CurrentValue = getgenv().AiriConfig.ParryRange,
     Flag = "AutoParryRangeSlider",
-    Callback = function(value)
-        getgenv().AiriConfig.ParryRange = value
-    end
+    Callback = function(value) getgenv().AiriConfig.ParryRange = value end
 })
 
 Tabs.Combat:CreateSection("Combat Assist")
@@ -127,19 +131,14 @@ Tabs.Combat:CreateToggle({
     Name = "Anti Parry",
     CurrentValue = getgenv().AiriConfig.AntiParry,
     Flag = "AntiParryToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.AntiParry = state
-    end
+    Callback = function(state) getgenv().AiriConfig.AntiParry = state end
 })
 
 Tabs.Combat:CreateToggle({
     Name = "Hitbox Expander",
-    Description = "Expands enemy hitboxes for easier hits.",
     CurrentValue = getgenv().AiriConfig.HitboxExpander,
     Flag = "HitboxExpanderToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.HitboxExpander = state
-    end
+    Callback = function(state) getgenv().AiriConfig.HitboxExpander = state end
 })
 
 Tabs.Combat:CreateSlider({
@@ -148,9 +147,7 @@ Tabs.Combat:CreateSlider({
     Increment = 0.1,
     CurrentValue = getgenv().AiriConfig.HitboxSize,
     Flag = "HitboxSizeSlider",
-    Callback = function(value)
-        getgenv().AiriConfig.HitboxSize = value
-    end
+    Callback = function(value) getgenv().AiriConfig.HitboxSize = value end
 })
 
 -----------------------------------------
@@ -161,27 +158,21 @@ Tabs.Movement:CreateToggle({
     Name = "Infinite Stamina",
     CurrentValue = getgenv().AiriConfig.InfStamina,
     Flag = "InfStaminaToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.InfStamina = state
-    end
+    Callback = function(state) getgenv().AiriConfig.InfStamina = state end
 })
 
 Tabs.Movement:CreateToggle({
     Name = "No Jump Delay",
     CurrentValue = getgenv().AiriConfig.NoJumpDelay,
     Flag = "NoJumpDelayToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.NoJumpDelay = state
-    end
+    Callback = function(state) getgenv().AiriConfig.NoJumpDelay = state end
 })
 
 Tabs.Movement:CreateToggle({
     Name = "No Dodge Delay",
     CurrentValue = getgenv().AiriConfig.NoDodgeDelay,
     Flag = "NoDodgeDelayToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.NoDodgeDelay = state
-    end
+    Callback = function(state) getgenv().AiriConfig.NoDodgeDelay = state end
 })
 
 -----------------------------------------
@@ -249,26 +240,12 @@ Tabs.Visuals:CreateToggle({
     end
 })
 
-Tabs.Visuals:CreateSlider({
-    Name = "ESP Opacity",
-    Range = {0, 1},
-    Increment = 0.1,
-    CurrentValue = getgenv().AiriConfig.ESPOpacity,
-    Flag = "ESPOpacitySlider",
-    Callback = function(value)
-        getgenv().AiriConfig.ESPOpacity = value
-        if VisualsModule and VisualsModule.SetOpacity then pcall(VisualsModule.SetOpacity, value) end
-    end
-})
-
 Tabs.Visuals:CreateSection("Aimbot Settings")
 Tabs.Visuals:CreateToggle({
     Name = "Enable Aimbot (Hold RMB)",
     CurrentValue = getgenv().AiriConfig.AimbotEnabled,
     Flag = "AimbotToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.AimbotEnabled = state
-    end
+    Callback = function(state) getgenv().AiriConfig.AimbotEnabled = state end
 })
 
 Tabs.Visuals:CreateSlider({
@@ -277,9 +254,7 @@ Tabs.Visuals:CreateSlider({
     Increment = 0.1,
     CurrentValue = getgenv().AiriConfig.AimbotSmooth,
     Flag = "AimbotSmoothSlider",
-    Callback = function(value)
-        getgenv().AiriConfig.AimbotSmooth = value
-    end
+    Callback = function(value) getgenv().AiriConfig.AimbotSmooth = value end
 })
 
 Tabs.Visuals:CreateSlider({
@@ -288,9 +263,7 @@ Tabs.Visuals:CreateSlider({
     Increment = 1,
     CurrentValue = getgenv().AiriConfig.AimbotFOV,
     Flag = "AimbotFOVSlider",
-    Callback = function(value)
-        getgenv().AiriConfig.AimbotFOV = value
-    end
+    Callback = function(value) getgenv().AiriConfig.AimbotFOV = value end
 })
 
 -----------------------------------------
@@ -302,10 +275,10 @@ Tabs.Settings:BuildThemeSection()
 -----------------------------------------
 -- INITIALIZE MODULES
 -----------------------------------------
--- Anti-Detect harus diinisialisasi paling awal
+print("[Airi Hub] Initializing local modules...")
 if AntiDetectModule and AntiDetectModule.Init then pcall(AntiDetectModule.Init) end
 if CombatModule and CombatModule.Init then pcall(CombatModule.Init) end
 if MovementModule and MovementModule.Init then pcall(MovementModule.Init) end
 if VisualsModule and VisualsModule.Init then pcall(VisualsModule.Init) end
 
-print("[Airi Hub] Successfully loaded all UI and modules.")
+print("[Airi Hub] DIBUKA! Sukses meload UI.")
