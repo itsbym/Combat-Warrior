@@ -17,42 +17,40 @@ local GCHooks = {}
 local Connections = {}
 
 -- ==========================================
--- METAMETHOD HOOKS (Fall Damage & Anti-Ragdoll)
--- ==========================================
-OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-
-    -- Hanya filter panggilan dari client game (bukan dari executor)
-    if not checkcaller() then
-        -- Hook Fall Damage (Remote Event Filter)
-        if method == "FireServer" then
-            if type(args[1]) == "string" and (args[1] == "TakeFallDamage" or args[1] == "StartFallDamage") then
-                if getgenv().AiriConfig.NoFallDamage then
-                    return nil -- Drop the remote call silently
-                end
-            end
-            
-        -- Hook Anti-Ragdoll (Attribute Hook)
-        elseif method == "GetAttribute" then
-            if getgenv().AiriConfig.AntiRagdoll and type(args[1]) == "string" then
-                local attr = args[1]
-                if attr == "IsRagdolledServer" or attr == "IsRagdolledClient" then
-                    return false
-                elseif attr == "RagdollDisabledClient" or attr == "RagdollDisabledServer" then
-                    return true
-                end
-            end
-        end
-    end
-
-    return OldNamecall(self, ...)
-end))
-
--- ==========================================
 -- MAIN INITIALIZATION
 -- ==========================================
 function MovementModule.Init()
+    -- METAMETHOD HOOKS (Fall Damage & Anti-Ragdoll)
+    OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+
+        -- Hanya filter panggilan dari client game (bukan dari executor)
+        if not checkcaller() then
+            -- Hook Fall Damage (Remote Event Filter)
+            if method == "FireServer" then
+                if type(args[1]) == "string" and (args[1] == "TakeFallDamage" or args[1] == "StartFallDamage") then
+                    if getgenv().AiriConfig.NoFallDamage then
+                        return nil -- Drop the remote call silently
+                    end
+                end
+                
+            -- Hook Anti-Ragdoll (Attribute Hook)
+            elseif method == "GetAttribute" then
+                if getgenv().AiriConfig.AntiRagdoll and type(args[1]) == "string" then
+                    local attr = args[1]
+                    if attr == "IsRagdolledServer" or attr == "IsRagdolledClient" then
+                        return false
+                    elseif attr == "RagdollDisabledClient" or attr == "RagdollDisabledServer" then
+                        return true
+                    end
+                end
+            end
+        end
+
+        return OldNamecall(self, ...)
+    end))
+    
     -- 1. NO JUMP DELAY (State Override via UserInput)
     local jumpRequestConn = UserInputService.JumpRequest:Connect(function()
         if getgenv().AiriConfig.NoJumpDelay then

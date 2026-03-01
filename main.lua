@@ -12,34 +12,10 @@ local Config = getgenv().AiriConfig
 
 print("[Airi Hub] Starting Engine...")
 
--- helper yang mencoba beberapa sumber termasuk file lokal
+-- Helper murni GitHub untuk memuat UI
 local function fetchLuna()
-    print("[Airi Hub] DEBUG: Attempting to load Luna from local file...")
+    print("[Airi Hub] DEBUG: Fetching Luna UI from GitHub sources...")
     
-    -- coba file lokal terlebih dahulu (paling reliable)
-    local ok, localCode = pcall(readfile, "LUNA-LIB-UI/source.lua")
-    print("[Airi Hub] DEBUG: Local readfile status: " .. tostring(ok))
-    
-    if ok and type(localCode) == "string" and #localCode > 0 then
-        print("[Airi Hub] DEBUG: Local file read successfully, compiling...")
-        local success, luaObj = pcall(loadstring, localCode)
-        print("[Airi Hub] DEBUG: Loadstring status: " .. tostring(success) .. ", type: " .. type(luaObj))
-        
-        if success and type(luaObj) == "function" then
-            print("[Airi Hub] DEBUG: Executing Luna function...")
-            local result = luaObj()
-            print("[Airi Hub] DEBUG: Luna result type: " .. type(result))
-            
-            if type(result) == "table" then
-                print("[Airi Hub] SUCCESS: Loaded Luna from local file!")
-                return true, result
-            end
-        end
-    end
-
-    print("[Airi Hub] DEBUG: Local file failed, trying GitHub sources...")
-    
-    -- jika lokal gagal, coba dari GitHub
     local sources = {
         "https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/refs/heads/master/source.lua",
         "https://raw.githubusercontent.com/AmeloxRUS/guiluna/refs/heads/main/luna.lua",
@@ -68,7 +44,7 @@ local function fetchLuna()
         end
     end
 
-    return false, "semua sumber gagal dimuat"
+    return false, "Semua sumber GitHub gagal dimuat"
 end
 
 print("[Airi Hub] Fetching Luna UI...")
@@ -112,54 +88,390 @@ Window:CreateHomeTab()
 
 print("[Airi Hub] Initializing modules asynchronously...")
 
--- Fungsi Helper untuk Load Module (DENGAN ANTI-CACHE / BYPASS CACHE GITHUB)
+-- Fungsi Helper untuk Load Module (HANYA GITHUB & EMBEDDED FALLBACK)
 local function loadModule(name)
-    local url = "https://raw.githubusercontent.com/itsbym/Combat-Warrior/main/modules/" .. name .. ".lua?t=" .. tostring(tick())
+    print("[Airi Hub] Loading module: " .. name)
     
-    print("[Airi Hub] Attempting to load module from: " .. url)
+    -- STRATEGI 1: Murni dari GitHub (dengan cache-bypass)
+    print("[Airi Hub] Trying GitHub source...")
+    local url = "https://raw.githubusercontent.com/itsbym/Combat-Warrior/main/modules/" .. name .. ".lua?t=" .. tostring(tick())
     
     local success, result = pcall(function()
         local code = game:HttpGet(url)
-        if not code or #code == 0 then
-            warn("[Airi Hub] HttpGet returned empty code for: " .. name)
-            return nil
-        end
-        print("[Airi Hub] Code fetched for " .. name .. " (" .. #code .. " bytes)")
-        
-        local loadFunc = loadstring(code)
-        if not loadFunc then
-            warn("[Airi Hub] loadstring failed for: " .. name)
-            return nil
-        end
-        print("[Airi Hub] loadstring succeeded for " .. name .. ", executing...")
-        
-        local moduleResult = loadFunc()
-        print("[Airi Hub] Module " .. name .. " executed, result type: " .. type(moduleResult))
-        return moduleResult
+        if not code or #code == 0 then return nil end
+        print("[Airi Hub] Fetched " .. name .. " from GitHub (" .. #code .. " bytes)")
+        return loadstring(code, "=" .. name)()
     end)
     
-    if success and result then
-        print("[Airi Hub] Successfully loaded module: " .. name)
+    if success and result and type(result) == "table" then
+        print("[Airi Hub] SUCCESS: Module " .. name .. " loaded from GitHub")
         return result
-    else
-        local errorMsg = tostring(result)
-        warn("[Airi Hub] FAILED to load module '" .. name .. "': " .. errorMsg)
-        -- Try alternative URL structure if first one fails
-        if name == "visual" then
-            print("[Airi Hub] Trying alternative name 'visuals' for visual module...")
-            local altUrl = "https://raw.githubusercontent.com/itsbym/Combat-Warrior/main/modules/visuals.lua?t=" .. tostring(tick())
-            local altSuccess, altResult = pcall(function()
-                local code = game:HttpGet(altUrl)
-                if not code or #code == 0 then return nil end
-                return loadstring(code)()
-            end)
-            if altSuccess and altResult then
-                print("[Airi Hub] Successfully loaded module with alternative name: visuals")
-                return altResult
-            end
-        end
-        return nil
     end
+    
+    -- STRATEGI 2: Embedded modules sebagai fallback (Tanpa File Lokal Sama Sekali)
+    print("[Airi Hub] GitHub load failed, attempting embedded fallback for: " .. name)
+    
+    local embeddedModules = {
+        antidetect = function()
+            --[[EMBEDDED_ANTIDETECT_MODULE_START]]
+            local Players = game:GetService("Players")
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local VirtualUser = game:GetService("VirtualUser")
+            local RunService = game:GetService("RunService")
+            local CollectionService = game:GetService("CollectionService")
+            local TweenService = game:GetService("TweenService")
+            local LocalPlayer = Players.LocalPlayer
+            local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
+            local AntiDetectModule = {}
+            local OldNamecall = nil
+            local OldKick = nil
+            local OldIndex = nil
+            local OldNewIndex = nil
+            local Connections = {}
+            local SpoofedBodyMovers = setmetatable({}, {__mode = "k"})
+            local BLOCKED_REMOTES = {["logkick"] = true,["logactrigger"] = true, ["ban"] = true, ["kick"] = true, ["anticheat"] = true, ["exploit"] = true, ["crash"] = true, ["detect"] = true}
+            local BODY_MOVER_TAG = "4f9a51c7-5fb1-43ea-834f-091d74b80d81"
+            local REQUIRED_BODY_MOVER_TAG = "4f9a51c7-5fb1-43ea-834f-091d74b80d81"
+            local SpoofedStores = {}
+            function AntiDetectModule.Init()
+                local idledConn = LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController() VirtualUser:ClickButton2(Vector2.new()) end)
+                table.insert(Connections, idledConn)
+                pcall(function()
+                    if PlayerGui then
+                        local notifConn = PlayerGui.ChildAdded:Connect(function(child)
+                            if child:IsA("ScreenGui") and (child.Name:lower():find("notif") or child.Name:lower():find("ac") or child.Name:lower():find("punish")) then
+                                task.wait() child.Enabled = false child:Destroy()
+                            end
+                        end)
+                        table.insert(Connections, notifConn)
+                    end
+                end)
+                if not OldNamecall then
+                    OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+                        local method = getnamecallmethod() local args = {...}
+                        if not checkcaller() then
+                            if method == "Kick" or method == "kick" then warn("[Airi Hub] Blocked Kick") return nil end
+                            if method == "FireServer" and type(args[1]) == "string" then
+                                local remoteName = string.lower(tostring(args[1]))
+                                if BLOCKED_REMOTES[remoteName] then warn("[Airi Hub] Blocked Remote: " .. remoteName) return nil end
+                                if remoteName:find("log") and (remoteName:find("kick") or remoteName:find("ac") or remoteName:find("trigger")) then return nil end
+                            end
+                            if method == "SetNetworkOwner" and type(args[1]) == "nil" then warn("[Airi Hub] Blocked NetworkOwner strip") return nil end
+                            if method == "HasTag" and args[2] == BODY_MOVER_TAG then return true end
+                        end
+                        return OldNamecall(self, ...)
+                    end))
+                end
+                if not OldIndex then
+                    OldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
+                        if not checkcaller() then
+                            if self == CollectionService and key == "HasTag" then
+                                return function(_, instance, tag)
+                                    if tag == BODY_MOVER_TAG or tag == REQUIRED_BODY_MOVER_TAG then if instance and instance:IsA("BodyMover") then return true end end
+                                    return OldIndex(CollectionService, "HasTag")(CollectionService, instance, tag)
+                                end
+                            end
+                            if key == "GetAttribute" and typeof(self) == "Instance" then
+                                return function(_, attrName)
+                                    local result = OldIndex(self, "GetAttribute")(self, attrName)
+                                    if getgenv().AiriConfig and getgenv().AiriConfig.AntiRagdoll then
+                                        if attrName == "IsRagdolledServer" or attrName == "IsRagdolledClient" then return false
+                                        elseif attrName == "RagdollDisabledClient" or attrName == "RagdollDisabledServer" then return true end
+                                    end
+                                    if getgenv().AiriConfig and getgenv().AiriConfig.NoDodgeDelay then
+                                        if attrName == "DashCooldown" then return 0 elseif attrName == "IsDashing" then return false end
+                                    end
+                                    return result
+                                end
+                            end
+                        end
+                        return OldIndex(self, key)
+                    end))
+                end
+                if not OldNewIndex then
+                    OldNewIndex = hookmetamethod(game, "__newindex", newcclosure(function(self, key, value)
+                        if not checkcaller() then
+                            if key == "IsRagdolledServer" or key == "IsRagdolledClient" then
+                                if getgenv().AiriConfig and getgenv().AiriConfig.AntiRagdoll then return OldNewIndex(self, key, false) end
+                            end
+                        end
+                        return OldNewIndex(self, key, value)
+                    end))
+                end
+                if not OldKick and hookfunction then
+                    pcall(function()
+                        OldKick = hookfunction(LocalPlayer.Kick, newcclosure(function(self, ...)
+                            if not checkcaller() then warn("[Airi Hub] Blocked direct Kick") return nil end
+                            return OldKick(self, ...)
+                        end))
+                    end)
+                end
+                print("[Airi Hub] Anti-Detect Initialized")
+            end
+            function AntiDetectModule.Unload()
+                for _, conn in ipairs(Connections) do if conn.Connected then conn:Disconnect() end end
+                table.clear(Connections)
+                if OldNamecall then hookmetamethod(game, "__namecall", OldNamecall) OldNamecall = nil end
+                if OldIndex then hookmetamethod(game, "__index", OldIndex) OldIndex = nil end
+                if OldNewIndex then hookmetamethod(game, "__newindex", OldNewIndex) OldNewIndex = nil end
+                if OldKick and hookfunction then hookfunction(LocalPlayer.Kick, OldKick) OldKick = nil end
+                table.clear(SpoofedStores) SpoofedBodyMovers = {}
+                print("[Airi Hub] Anti-Detect Unloaded")
+            end
+            return AntiDetectModule
+            --[[EMBEDDED_ANTIDETECT_MODULE_END]]
+        end,
+        combat = function()
+            --[[EMBEDDED_COMBAT_MODULE_START]]
+            local Players = game:GetService("Players")
+            local RunService = game:GetService("RunService")
+            local Workspace = game:GetService("Workspace")
+            local UserInputService = game:GetService("UserInputService")
+            local VirtualInputManager = game:GetService("VirtualInputManager")
+            local LocalPlayer = Players.LocalPlayer
+            local Camera = Workspace.CurrentCamera
+            local CombatModule = {}
+            local Connections = {}
+            local PlayerCharacters = Workspace:WaitForChild("PlayerCharacters")
+            local OriginalSizes = setmetatable({}, {__mode = "k"})
+            
+            local FOVCircle
+            if Drawing then
+                pcall(function()
+                    FOVCircle = Drawing.new("Circle")
+                    FOVCircle.Visible = false FOVCircle.Color = Color3.fromRGB(255,255,255) FOVCircle.Thickness = 1 FOVCircle.Filled = false FOVCircle.Transparency = 1
+                end)
+            end
+            
+            local function getLocalCharacter() return PlayerCharacters:FindFirstChild(LocalPlayer.Name) end
+            local parryDebounce = false
+            local function triggerParry()
+                if parryDebounce then return end parryDebounce = true
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+                task.wait(getgenv().AiriConfig.AutoParryDelay or 0.1)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+                task.delay(0.5, function() parryDebounce = false end)
+            end
+            local function resetHitbox(part)
+                if not part then return end
+                if OriginalSizes[part] then part.Size = OriginalSizes[part] OriginalSizes[part] = nil end
+                part.CanCollide = true
+            end
+            local function applyHitbox(char, config)
+                if char.Name == LocalPlayer.Name then return end
+                local part = char:FindFirstChild(config.HitboxPart or "HumanoidRootPart")
+                if part then
+                    if not OriginalSizes[part] then OriginalSizes[part] = part.Size end
+                    part.Size = Vector3.new(config.HitboxSize, config.HitboxSize, config.HitboxSize)
+                    part.CanCollide = false
+                end
+            end
+            local function getClosestToCursor(config)
+                local closestChar, shortestDist, mousePos = nil, config.AimbotFOV or 100, UserInputService:GetMouseLocation()
+                for _, char in ipairs(PlayerCharacters:GetChildren()) do
+                    if char.Name ~= LocalPlayer.Name and char:FindFirstChild("HumanoidRootPart") then
+                        local humanoid = char:FindFirstChild("Humanoid")
+                        if humanoid and humanoid.Health > 0 then
+                            local vector, onScreen = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
+                            if onScreen then
+                                local dist = (Vector2.new(vector.X, vector.Y) - mousePos).Magnitude
+                                if dist < shortestDist then closestChar = char shortestDist = dist end
+                            end
+                        end
+                    end
+                end
+                return closestChar
+            end
+            local function setupAnimationDetection(enemyChar)
+                if enemyChar.Name == LocalPlayer.Name then return end
+                task.spawn(function()
+                    local humanoid = enemyChar:WaitForChild("Humanoid", 10) if not humanoid then return end
+                    local animator = humanoid:WaitForChild("Animator", 10) if not animator then return end
+                    local animConn = animator.AnimationPlayed:Connect(function(animationTrack)
+                        local Config = getgenv().AiriConfig
+                        if not Config.AutoParry or not Config.UseAnimation then return end
+                        local animName = animationTrack.Animation.Name:lower()
+                        if animName:find("slash") then
+                            local localChar = getLocalCharacter()
+                            if localChar and localChar:FindFirstChild("HumanoidRootPart") and enemyChar:FindFirstChild("HumanoidRootPart") then
+                                local dist = (localChar.HumanoidRootPart.Position - enemyChar.HumanoidRootPart.Position).Magnitude
+                                if dist <= (Config.ParryRange or 15) then triggerParry() end
+                            end
+                        end
+                    end)
+                    table.insert(Connections, animConn)
+                end)
+            end
+            function CombatModule.Init()
+                for _, char in ipairs(PlayerCharacters:GetChildren()) do setupAnimationDetection(char) end
+                table.insert(Connections, PlayerCharacters.ChildAdded:Connect(setupAnimationDetection))
+                table.insert(Connections, PlayerCharacters.DescendantAdded:Connect(function(descendant)
+                    local Config = getgenv().AiriConfig
+                    if not Config.AutoParry or not Config.UseSound then return end
+                    if descendant:IsA("Sound") then
+                        local name = descendant.Name
+                        if name == "1" or name == "2" or name == "3" or name == "4" then
+                            if descendant.Parent and descendant.Parent.Name == "Hitbox" then
+                                local enemyChar = descendant:FindFirstAncestorOfClass("Model")
+                                if enemyChar and enemyChar.Parent == PlayerCharacters and enemyChar.Name ~= LocalPlayer.Name then
+                                    local localChar = getLocalCharacter()
+                                    if localChar and localChar:FindFirstChild("HumanoidRootPart") and enemyChar:FindFirstChild("HumanoidRootPart") then
+                                        local dist = (localChar.HumanoidRootPart.Position - enemyChar.HumanoidRootPart.Position).Magnitude
+                                        if dist <= (Config.ParryRange or 15) then triggerParry() end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end))
+                table.insert(Connections, RunService.RenderStepped:Connect(function(deltaTime)
+                    local Config = getgenv().AiriConfig
+                    if FOVCircle then
+                        if Config.AimbotEnabled and Config.ShowFOV then FOVCircle.Visible = true FOVCircle.Radius = Config.AimbotFOV FOVCircle.Position = UserInputService:GetMouseLocation() else FOVCircle.Visible = false end
+                    end
+                    for _, char in ipairs(PlayerCharacters:GetChildren()) do
+                        if char.Name ~= LocalPlayer.Name then
+                            local hitboxPart = Config.HitboxPart or "HumanoidRootPart"
+                            local partTarget = char:FindFirstChild(hitboxPart)
+                            if Config.HitboxExpander then applyHitbox(char, Config) else resetHitbox(partTarget) end
+                        end
+                    end
+                    if Config.AimbotEnabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+                        local target = getClosestToCursor(Config)
+                        if target and target:FindFirstChild(Config.HitboxPart or "HumanoidRootPart") then
+                            local targetPos = target[Config.HitboxPart or "HumanoidRootPart"].Position
+                            local currentCFrame = Camera.CFrame
+                            local targetCFrame = CFrame.new(currentCFrame.Position, targetPos)
+                            Camera.CFrame = currentCFrame:Lerp(targetCFrame, (Config.AimbotSmooth or 0.5) * deltaTime * 10)
+                        end
+                    end
+                end))
+            end
+            function CombatModule.Unload()
+                if FOVCircle then FOVCircle:Remove() end
+                for _, conn in ipairs(Connections) do if conn.Connected then conn:Disconnect() end end
+                table.clear(Connections)
+                for part, _ in pairs(OriginalSizes) do resetHitbox(part) end
+            end
+            return CombatModule
+            --[[EMBEDDED_COMBAT_MODULE_END]]
+        end,
+        movement = function()
+            --[[EMBEDDED_MOVEMENT_MODULE_START]]
+            local Players = game:GetService("Players")
+            local RunService = game:GetService("RunService")
+            local UserInputService = game:GetService("UserInputService")
+            local LocalPlayer = Players.LocalPlayer
+            local MovementModule = {}
+            local OldNamecall = nil
+            local GCHooks = {}
+            local Connections = {}
+            function MovementModule.Init()
+                OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+                    local method = getnamecallmethod() local args = {...}
+                    if not checkcaller() then
+                        if method == "FireServer" then
+                            if type(args[1]) == "string" and (args[1] == "TakeFallDamage" or args[1] == "StartFallDamage") then
+                                if getgenv().AiriConfig.NoFallDamage then return nil end
+                            end
+                        elseif method == "GetAttribute" then
+                            if getgenv().AiriConfig.AntiRagdoll and type(args[1]) == "string" then
+                                local attr = args[1]
+                                if attr == "IsRagdolledServer" or attr == "IsRagdolledClient" then return false
+                                elseif attr == "RagdollDisabledClient" or attr == "RagdollDisabledServer" then return true end
+                            end
+                        end
+                    end
+                    return OldNamecall(self, ...)
+                end))
+                table.insert(Connections, UserInputService.JumpRequest:Connect(function()
+                    if getgenv().AiriConfig.NoJumpDelay then
+                        local char = LocalPlayer.Character
+                        if char then
+                            local humanoid = char:FindFirstChildOfClass("Humanoid")
+                            if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Dead then humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end
+                        end
+                    end
+                end))
+                task.spawn(function()
+                    if not getgc then return end
+                    pcall(function()
+                        for _, obj in pairs(getgc(true)) do
+                            if type(obj) == "table" and rawget(obj, "enableDrain") and type(rawget(obj, "enableDrain")) == "function" then
+                                local originalDrain = rawget(obj, "enableDrain")
+                                table.insert(GCHooks, {object = obj, oldDrain = originalDrain, oldGain = rawget(obj, "gainPerSecond"), oldDelay = rawget(obj, "gainDelay")})
+                                obj.enableDrain = newcclosure(function(self, ...) if getgenv().AiriConfig.InfStamina then return end return originalDrain(self, ...) end)
+                            end
+                        end
+                    end)
+                end)
+                table.insert(Connections, RunService.Heartbeat:Connect(function()
+                    for _, hookData in ipairs(GCHooks) do
+                        local obj = hookData.object
+                        if getgenv().AiriConfig.InfStamina then
+                            rawset(obj, "gainPerSecond", 9999) rawset(obj, "gainDelay", 0)
+                            local maxStam = rawget(obj, "_maxStamina")
+                            if maxStam then rawset(obj, "_stamina", maxStam) end
+                        else
+                            if rawget(obj, "gainPerSecond") == 9999 then rawset(obj, "gainPerSecond", hookData.oldGain) rawset(obj, "gainDelay", hookData.oldDelay) end
+                        end
+                    end
+                    if getgenv().AiriConfig.NoDodgeDelay and LocalPlayer.Character then
+                        local char = LocalPlayer.Character
+                        if char:GetAttribute("DashCooldown") then char:SetAttribute("DashCooldown", 0) end
+                        if char:GetAttribute("IsDashing") then char:SetAttribute("IsDashing", false) end
+                    end
+                end))
+            end
+            function MovementModule.Unload()
+                if OldNamecall then hookmetamethod(game, "__namecall", OldNamecall) end
+                for _, conn in ipairs(Connections) do if conn.Connected then conn:Disconnect() end end table.clear(Connections)
+                for _, hookData in ipairs(GCHooks) do local obj = hookData.object if obj then rawset(obj, "enableDrain", hookData.oldDrain) rawset(obj, "gainPerSecond", hookData.oldGain) rawset(obj, "gainDelay", hookData.oldDelay) end end table.clear(GCHooks)
+            end
+            return MovementModule
+            --[[EMBEDDED_MOVEMENT_MODULE_END]]
+        end,
+        visuals = function()
+            --[[EMBEDDED_VISUAL_MODULE_START]]
+            local VisualsModule = {}
+            getgenv().AiriConfig = getgenv().AiriConfig or {ESPEnabled = false, ESPOpacity = 1, ESPBox = true, ESPBoxStyle = "Normal", ESPChams = false, ESPSkeleton = false, ESPTracers = false, ESPNames = true, ESPDistances = true, ESPHealthBar = true}
+            local Twilight = nil
+            local function getBoxStyleInt(styleString) if styleString == "Corner" then return 1 elseif styleString == "3D" then return 3 end return 2 end
+            function VisualsModule.Init()
+                local success, result = pcall(function() return loadstring(game:HttpGet("https://raw.githubusercontent.com/Nebula-Softworks/Twilight-ESP/master/src/init.luau"))() end)
+                if success and result then Twilight = result print("[Airi Hub] Twilight ESP Loaded") else warn("[Airi Hub] Twilight ESP Failed: " .. tostring(result)) end
+                VisualsModule.UpdateAll()
+            end
+            function VisualsModule.UpdateAll()
+                if not Twilight then return end
+                local cfg = getgenv().AiriConfig
+                Twilight:SetOptions({Enabled = cfg.ESPEnabled, RefreshRate = 1/60, MaxDistance = 1000, Box = {Enabled = cfg.ESPBox, Style = getBoxStyleInt(cfg.ESPBoxStyle), Thickness = 1, Transparency = cfg.ESPOpacity, Filled = {Enabled = false, Transparency = 0.6 * cfg.ESPOpacity}}, Chams = {Enabled = {enemy = cfg.ESPChams, friendly = false,["local"] = false}, Fill = {Enabled = true, Transparency = 0.5 * cfg.ESPOpacity}, Outline = {Enabled = true, Thickness = 0.1}}, Skeleton = {Enabled = {enemy = cfg.ESPSkeleton, friendly = false}, Thickness = 1, Transparency = cfg.ESPOpacity}, Tracer = {Enabled = {enemy = cfg.ESPTracers, friendly = false}, Origin = 1, Thickness = 1, Transparency = cfg.ESPOpacity}, Name = {Enabled = {enemy = cfg.ESPNames, friendly = false}, Style = 1}, Distance = {Enabled = {enemy = cfg.ESPDistances, friendly = false}}, HealthBar = {Enabled = {enemy = cfg.ESPHealthBar, friendly = false}, Bar = true, Text = true}})
+            end
+            function VisualsModule.ToggleESP(state) getgenv().AiriConfig.ESPEnabled = state VisualsModule.UpdateAll() end
+            function VisualsModule.SetBox(state, style) getgenv().AiriConfig.ESPBox = state if style then getgenv().AiriConfig.ESPBoxStyle = style end VisualsModule.UpdateAll() end
+            function VisualsModule.SetChams(state) getgenv().AiriConfig.ESPChams = state VisualsModule.UpdateAll() end
+            function VisualsModule.SetSkeleton(state) getgenv().AiriConfig.ESPSkeleton = state VisualsModule.UpdateAll() end
+            function VisualsModule.SetTracers(state) getgenv().AiriConfig.ESPTracers = state VisualsModule.UpdateAll() end
+            function VisualsModule.SetOpacity(value) getgenv().AiriConfig.ESPOpacity = math.clamp(value, 0, 1) VisualsModule.UpdateAll() end
+            function VisualsModule.Unload() if Twilight then pcall(function() Twilight:Unload() end) Twilight = nil end end
+            return VisualsModule
+            --[[EMBEDDED_VISUAL_MODULE_END]]
+        end
+    }
+    
+    -- Alias untuk modul visual/visuals
+    embeddedModules.visual = embeddedModules.visuals
+    
+    if embeddedModules[name] then
+        local success, result = pcall(embeddedModules[name])
+        if success and result and type(result) == "table" then
+            print("[Airi Hub] SUCCESS: Module " .. name .. " loaded from embedded fallback")
+            return result
+        end
+    end
+    
+    warn("[Airi Hub] FAILED to load module: " .. name)
+    return nil
 end
 
 -- Declare modules as nil first (they will be populated)
@@ -183,7 +495,7 @@ task.spawn(function()
     getgenv().AiriModules.Movement = MovementModule
     print("[Airi Hub] MovementModule loaded: " .. tostring(MovementModule ~= nil))
     
-    VisualsModule = loadModule("visual")
+    VisualsModule = loadModule("visual") or loadModule("visuals")
     getgenv().AiriModules.Visuals = VisualsModule
     print("[Airi Hub] VisualsModule loaded: " .. tostring(VisualsModule ~= nil))
     
@@ -312,15 +624,12 @@ local visualsSuccess, visualsErr = pcall(function()
         Callback = function(value)
             print("[Airi Hub] ESP Box Style changed to: " .. tostring(value))
             getgenv().AiriConfig.ESPBoxStyle = value
-            -- Only execute if modules are loaded
             if getgenv().AiriModules and getgenv().AiriModules.Visuals then
                 local VisualsModule = getgenv().AiriModules.Visuals
                 if VisualsModule.SetBox then 
                     local ok, err = pcall(VisualsModule.SetBox, getgenv().AiriConfig.ESPBox, value)
                     if not ok then warn("[Airi Hub] SetBox Error: " .. tostring(err)) end
                 end
-            else
-                print("[Airi Hub] SetBox: Visuals module not loaded yet")
             end
         end
     })
@@ -338,8 +647,6 @@ local visualsSuccess, visualsErr = pcall(function()
                     local ok, err = pcall(VisualsModule.SetBox, state, getgenv().AiriConfig.ESPBoxStyle)
                     if not ok then warn("[Airi Hub] SetBox Error: " .. tostring(err)) end
                 end
-            else
-                print("[Airi Hub] SetBox: Visuals module not loaded yet")
             end
         end
     })
@@ -357,8 +664,6 @@ local visualsSuccess, visualsErr = pcall(function()
                     local ok, err = pcall(VisualsModule.SetChams, state)
                     if not ok then warn("[Airi Hub] SetChams Error: " .. tostring(err)) end
                 end
-            else
-                print("[Airi Hub] SetChams: Visuals module not loaded yet")
             end
         end
     })
@@ -376,8 +681,6 @@ local visualsSuccess, visualsErr = pcall(function()
                     local ok, err = pcall(VisualsModule.SetSkeleton, state)
                     if not ok then warn("[Airi Hub] SetSkeleton Error: " .. tostring(err)) end
                 end
-            else
-                print("[Airi Hub] SetSkeleton: Visuals module not loaded yet")
             end
         end
     })
@@ -395,8 +698,6 @@ local visualsSuccess, visualsErr = pcall(function()
                     local ok, err = pcall(VisualsModule.SetTracers, state)
                     if not ok then warn("[Airi Hub] SetTracers Error: " .. tostring(err)) end
                 end
-            else
-                print("[Airi Hub] SetTracers: Visuals module not loaded yet")
             end
         end
     })

@@ -21,13 +21,18 @@ local PlayerCharacters = Workspace:WaitForChild("PlayerCharacters")
 local OriginalSizes = setmetatable({}, {__mode = "k"})
 local OriginalTransparency = setmetatable({}, {__mode = "k"})
 
--- FOV Circle setup
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Visible = false
-FOVCircle.Color = Color3.fromRGB(255, 255, 255)
-FOVCircle.Thickness = 1
-FOVCircle.Filled = false
-FOVCircle.Transparency = 1
+-- FOV Circle setup dengan Safe Check untuk executor yang tidak mensupport Drawing (misal: executor Android)
+local FOVCircle
+if Drawing then
+    pcall(function()
+        FOVCircle = Drawing.new("Circle")
+        FOVCircle.Visible = false
+        FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+        FOVCircle.Thickness = 1
+        FOVCircle.Filled = false
+        FOVCircle.Transparency = 1
+    end)
+end
 
 -- Utility: Get Local Character
 local function getLocalCharacter()
@@ -184,12 +189,14 @@ function CombatModule.Init()
         local Config = getgenv().AiriConfig
 
         -- Update FOV Drawing
-        if Config.AimbotEnabled and Config.ShowFOV then
-            FOVCircle.Visible = true
-            FOVCircle.Radius = Config.AimbotFOV
-            FOVCircle.Position = UserInputService:GetMouseLocation()
-        else
-            FOVCircle.Visible = false
+        if FOVCircle then
+            if Config.AimbotEnabled and Config.ShowFOV then
+                FOVCircle.Visible = true
+                FOVCircle.Radius = Config.AimbotFOV
+                FOVCircle.Position = UserInputService:GetMouseLocation()
+            else
+                FOVCircle.Visible = false
+            end
         end
 
         -- Update Hitboxes
@@ -227,7 +234,9 @@ end
 
 -- Module Cleanup Logic
 function CombatModule:Unload()
-    FOVCircle:Remove()
+    if FOVCircle then
+        FOVCircle:Remove()
+    end
     
     for _, conn in ipairs(Connections) do
         if conn.Connected then
