@@ -110,7 +110,7 @@ Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "settings_phone", I
 
 Window:CreateHomeTab()
 
-print("[Airi Hub] Loading modules before populating tabs...")
+print("[Airi Hub] Initializing modules asynchronously...")
 
 -- Fungsi Helper untuk Load Module (DENGAN ANTI-CACHE / BYPASS CACHE GITHUB)
 local function loadModule(name)
@@ -129,20 +129,36 @@ local function loadModule(name)
     end
 end
 
--- Load modules FIRST (before tab content so callbacks can reference them)
-local AntiDetectModule = loadModule("antidetect")
-print("[Airi Hub] AntiDetectModule loaded: " .. tostring(AntiDetectModule ~= nil))
+-- Declare modules as nil first (they will be populated)
+local AntiDetectModule, CombatModule, MovementModule, VisualsModule
 
-local CombatModule = loadModule("combat")
-print("[Airi Hub] CombatModule loaded: " .. tostring(CombatModule ~= nil))
+-- Load modules asynchronously (non-blocking)
+task.spawn(function()
+    print("[Airi Hub] Loading modules in background...")
+    AntiDetectModule = loadModule("antidetect")
+    print("[Airi Hub] AntiDetectModule loaded: " .. tostring(AntiDetectModule ~= nil))
+    
+    CombatModule = loadModule("combat")
+    print("[Airi Hub] CombatModule loaded: " .. tostring(CombatModule ~= nil))
+    
+    MovementModule = loadModule("movement")
+    print("[Airi Hub] MovementModule loaded: " .. tostring(MovementModule ~= nil))
+    
+    VisualsModule = loadModule("visual")
+    print("[Airi Hub] VisualsModule loaded: " .. tostring(VisualsModule ~= nil))
+    
+    print("[Airi Hub] All modules loaded.")
+    
+    -- Initialize modules
+    if AntiDetectModule and AntiDetectModule.Init then pcall(AntiDetectModule.Init) end
+    if CombatModule and CombatModule.Init then pcall(CombatModule.Init) end
+    if MovementModule and MovementModule.Init then pcall(MovementModule.Init) end
+    if VisualsModule and VisualsModule.Init then pcall(VisualsModule.Init) end
+    
+    print("[Airi Hub] Modules initialized.")
+end)
 
-local MovementModule = loadModule("movement")
-print("[Airi Hub] MovementModule loaded: " .. tostring(MovementModule ~= nil))
-
-local VisualsModule = loadModule("visual")
-print("[Airi Hub] VisualsModule loaded: " .. tostring(VisualsModule ~= nil))
-
-print("[Airi Hub] All modules loaded. Now populating tabs...")
+print("[Airi Hub] Now populating tabs (modules loading in background)...")
 
 -----------------------------------------
 -- COMBAT TAB
@@ -354,15 +370,5 @@ pcall(function()
     print("[Airi Hub] Settings tab populated!")
 end)
 
-print("[Airi Hub] UI loaded successfully. Tab callbacks now have access to modules...")
-
------------------------------------------
--- INITIALIZE MODULES
------------------------------------------
-print("[Airi Hub] Initializing local modules...")
-if AntiDetectModule and AntiDetectModule.Init then pcall(AntiDetectModule.Init) end
-if CombatModule and CombatModule.Init then pcall(CombatModule.Init) end
-if MovementModule and MovementModule.Init then pcall(MovementModule.Init) end
-if VisualsModule and VisualsModule.Init then pcall(VisualsModule.Init) end
-
+print("[Airi Hub] UI loaded successfully!")
 print("[Airi Hub] DIBUKA! Sukses meload UI.")
