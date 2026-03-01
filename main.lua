@@ -280,14 +280,14 @@ local visualsSuccess, visualsErr = pcall(function()
         Callback = function(state)
             getgenv().AiriConfig.ESPEnabled = state
             print("[Airi Hub] ESP Toggle: " .. tostring(state))
-            local VisualsModule = getgenv().AiriModules.Visuals
-            print("[Airi Hub] VisualsModule available: " .. tostring(VisualsModule ~= nil))
-            if VisualsModule then
-                print("[Airi Hub] VisualsModule.ToggleESP available: " .. tostring(VisualsModule.ToggleESP ~= nil))
+            if getgenv().AiriModules and getgenv().AiriModules.Visuals then
+                local VisualsModule = getgenv().AiriModules.Visuals
                 if VisualsModule.ToggleESP then 
                     local ok, err = pcall(VisualsModule.ToggleESP, state)
                     if not ok then warn("[Airi Hub] ToggleESP Error: " .. tostring(err)) end
                 end
+            else
+                print("[Airi Hub] ToggleESP: Visuals module not loaded yet")
             end
         end
     })
@@ -295,15 +295,20 @@ local visualsSuccess, visualsErr = pcall(function()
     Tabs.Visuals:CreateDropdown({
         Name = "ESP Box Style",
         Options = {"Corner", "Normal", "3D"},
-        CurrentValue = getgenv().AiriConfig.ESPBoxStyle,
+        CurrentValue = "Normal",
         Flag = "ESPBoxStyleDropdown",
         Callback = function(value)
             print("[Airi Hub] ESP Box Style changed to: " .. tostring(value))
             getgenv().AiriConfig.ESPBoxStyle = value
-            local VisualsModule = getgenv().AiriModules.Visuals
-            if VisualsModule and VisualsModule.SetBox then 
-                local ok, err = pcall(VisualsModule.SetBox, getgenv().AiriConfig.ESPBox, value)
-                if not ok then warn("[Airi Hub] SetBox Error: " .. tostring(err)) end
+            -- Only execute if modules are loaded
+            if getgenv().AiriModules and getgenv().AiriModules.Visuals then
+                local VisualsModule = getgenv().AiriModules.Visuals
+                if VisualsModule.SetBox then 
+                    local ok, err = pcall(VisualsModule.SetBox, getgenv().AiriConfig.ESPBox, value)
+                    if not ok then warn("[Airi Hub] SetBox Error: " .. tostring(err)) end
+                end
+            else
+                print("[Airi Hub] SetBox: Visuals module not loaded yet")
             end
         end
     })
@@ -315,10 +320,14 @@ local visualsSuccess, visualsErr = pcall(function()
         Callback = function(state)
             print("[Airi Hub] ESP Box Toggle: " .. tostring(state))
             getgenv().AiriConfig.ESPBox = state
-            local VisualsModule = getgenv().AiriModules.Visuals
-            if VisualsModule and VisualsModule.SetBox then 
-                local ok, err = pcall(VisualsModule.SetBox, state, getgenv().AiriConfig.ESPBoxStyle)
-                if not ok then warn("[Airi Hub] SetBox Error: " .. tostring(err)) end
+            if getgenv().AiriModules and getgenv().AiriModules.Visuals then
+                local VisualsModule = getgenv().AiriModules.Visuals
+                if VisualsModule.SetBox then 
+                    local ok, err = pcall(VisualsModule.SetBox, state, getgenv().AiriConfig.ESPBoxStyle)
+                    if not ok then warn("[Airi Hub] SetBox Error: " .. tostring(err)) end
+                end
+            else
+                print("[Airi Hub] SetBox: Visuals module not loaded yet")
             end
         end
     })
@@ -330,10 +339,14 @@ local visualsSuccess, visualsErr = pcall(function()
         Callback = function(state)
             print("[Airi Hub] ESP Chams Toggle: " .. tostring(state))
             getgenv().AiriConfig.ESPChams = state
-            local VisualsModule = getgenv().AiriModules.Visuals
-            if VisualsModule and VisualsModule.SetChams then 
-                local ok, err = pcall(VisualsModule.SetChams, state)
-                if not ok then warn("[Airi Hub] SetChams Error: " .. tostring(err)) end
+            if getgenv().AiriModules and getgenv().AiriModules.Visuals then
+                local VisualsModule = getgenv().AiriModules.Visuals
+                if VisualsModule.SetChams then 
+                    local ok, err = pcall(VisualsModule.SetChams, state)
+                    if not ok then warn("[Airi Hub] SetChams Error: " .. tostring(err)) end
+                end
+            else
+                print("[Airi Hub] SetChams: Visuals module not loaded yet")
             end
         end
     })
@@ -345,10 +358,14 @@ local visualsSuccess, visualsErr = pcall(function()
         Callback = function(state)
             print("[Airi Hub] ESP Skeleton Toggle: " .. tostring(state))
             getgenv().AiriConfig.ESPSkeleton = state
-            local VisualsModule = getgenv().AiriModules.Visuals
-            if VisualsModule and VisualsModule.SetSkeleton then 
-                local ok, err = pcall(VisualsModule.SetSkeleton, state)
-                if not ok then warn("[Airi Hub] SetSkeleton Error: " .. tostring(err)) end
+            if getgenv().AiriModules and getgenv().AiriModules.Visuals then
+                local VisualsModule = getgenv().AiriModules.Visuals
+                if VisualsModule.SetSkeleton then 
+                    local ok, err = pcall(VisualsModule.SetSkeleton, state)
+                    if not ok then warn("[Airi Hub] SetSkeleton Error: " .. tostring(err)) end
+                end
+            else
+                print("[Airi Hub] SetSkeleton: Visuals module not loaded yet")
             end
         end
     })
@@ -360,10 +377,14 @@ local visualsSuccess, visualsErr = pcall(function()
         Callback = function(state)
             print("[Airi Hub] ESP Tracers Toggle: " .. tostring(state))
             getgenv().AiriConfig.ESPTracers = state
-            local VisualsModule = getgenv().AiriModules.Visuals
-            if VisualsModule and VisualsModule.SetTracers then 
-                local ok, err = pcall(VisualsModule.SetTracers, state)
-                if not ok then warn("[Airi Hub] SetTracers Error: " .. tostring(err)) end
+            if getgenv().AiriModules and getgenv().AiriModules.Visuals then
+                local VisualsModule = getgenv().AiriModules.Visuals
+                if VisualsModule.SetTracers then 
+                    local ok, err = pcall(VisualsModule.SetTracers, state)
+                    if not ok then warn("[Airi Hub] SetTracers Error: " .. tostring(err)) end
+                end
+            else
+                print("[Airi Hub] SetTracers: Visuals module not loaded yet")
             end
         end
     })
