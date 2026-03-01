@@ -121,9 +121,21 @@ local function loadModule(name)
     local success, result = pcall(function()
         local code = game:HttpGet(url)
         if not code or #code == 0 then
+            warn("[Airi Hub] HttpGet returned empty code for: " .. name)
             return nil
         end
-        return loadstring(code)()
+        print("[Airi Hub] Code fetched for " .. name .. " (" .. #code .. " bytes)")
+        
+        local loadFunc = loadstring(code)
+        if not loadFunc then
+            warn("[Airi Hub] loadstring failed for: " .. name)
+            return nil
+        end
+        print("[Airi Hub] loadstring succeeded for " .. name .. ", executing...")
+        
+        local moduleResult = loadFunc()
+        print("[Airi Hub] Module " .. name .. " executed, result type: " .. type(moduleResult))
+        return moduleResult
     end)
     
     if success and result then
