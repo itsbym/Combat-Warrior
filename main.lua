@@ -88,23 +88,29 @@ local embeddedModules = {
             local mt = getrawmetatable(game)
             setreadonly(mt, false)
 
+            -- CACHE SERVICES DI LUAR HOOK (Sangat Pantang Manggil GetService di dalam Namecall -> Infinite Loop / Crash)
+            local CollectionService = game:GetService("CollectionService")
+            local CoreGui = game:GetService("CoreGui")
+
             oldNamecall = mt.__namecall
             mt.__namecall = newcclosure(function(self, ...)
                 local method = getnamecallmethod()
-                local args = {...}
 
                 if not checkcaller() then
                     -- Pemanggilan berasal dari game script (Anti-Cheat)
 
-                    -- Mencegat pemanggilan CollectionService:HasTag untuk mendeteksi pergerakan tidak wajar
-                    if self == game:GetService("CollectionService") and method == "HasTag" then
-                        if args[1] == "BodyMover" or args[1] == "SuspiciousMovement" then
+                    if self == CollectionService and method == "HasTag" then
+                        -- Hanya parsing argument saat kondisi terpenuhi agar FPS tidak drop (mengurangi sampah GC)
+                        local args = {...}
+                        local tag = args[2] -- Arg 1 adalah Instance, Arg 2 adalah tag string
+                        
+                        if type(tag) == "string" and (tag == "BodyMover" or tag == "SuspiciousMovement" or tag == "4f9a51c7-5fb1-43ea-834f-091d74b80d81") then
                             return false -- Spoof nilai false agar dikira aman
                         end
                     end
 
                     -- Mencegah Anti-Cheat memeriksa apa yang kita ubah di dalam instans tertentu
-                    if self == game:GetService("CoreGui") and (method == "FindFirstChild" or method == "GetChildren") then
+                    if self == CoreGui and (method == "FindFirstChild" or method == "GetChildren") then
                         -- Beberapa executor menyimpan UI di CoreGui, kita bisa spoofing hasilnya di sini jika perlu
                         -- Untuk saat ini, kita biarkan aslinya, atau filter nama spesifik.
                     end
@@ -148,14 +154,14 @@ local embeddedModules = {
 
             -- Mute error agar tidak dikirim lewat webhook oleh game
             errConn = ScriptContext.Error:Connect(function(message, trace, script)
-                local msg = string.lower(message)
-                local trc = string.lower(trace)
+                local msg = string.lower(tostring(message))
+                local trc = string.lower(tostring(trace))
 
                 -- Jika errornya karena script kita
                 if string.match(msg, "airi") or string.match(trc, "airi") or string.match(trc, "executor") then
                     -- Menghapus console output client (hanya bekerja di beberapa executor)
                     if clearconsole then
-                        clearconsole()
+                        pcall(clearconsole)
                     end
                 end
             end)
