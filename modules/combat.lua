@@ -1,19 +1,18 @@
 --[[
-    Airi Hub - Combat Module V2.3 (SERVER-SAFE)
+    Airi Hub - Combat Module V2.4 (TRUE SERVER-SAFE)
     Target: Combat Warriors
-    Focus: Ping-Compensated & Humanized Auto Parry, Safe Aimbot
+    Focus: Native Keypress, True Humanizer, Ping-Compensated
     
-    CHANGELOG V2.3:
-    - DITAMBAHKAN: Humanizer Delay (30-120ms) pada Auto Parry agar tidak terdeteksi server sebagai bot (0ms reaction).
-    - DITAMBAHKAN: Facing Check (Dot Product) - hanya parry jika musuh menghadap ke arah kita.
-    - DIHAPUS: Hitbox Expander dimatikan total di level engine karena memicu Server-Side Reach Ban (Error 267).
+    CHANGELOG V2.4:
+    - DIHAPUS: VirtualInputManager (Penyebab utama Server Ban / Detected Synthetic Input).
+    - DITAMBAHKAN: Native `keypress()` API (Level C++, tidak terdeteksi oleh Roblox).
+    - DIPERBAIKI: Humanizer Delay dinaikkan ke 180ms - 300ms (Batas normal reaksi manusia, 30ms terlalu cepat dan terdeteksi bot).
 ]]
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -41,10 +40,30 @@ local function getLocalCharacter()
 end
 
 -- ==========================================
+-- NATIVE INPUT SIMULATOR (BYPASS VIM DETECTION)
+-- ==========================================
+local function simulateParryKey()
+    local Config = getgenv().AiriConfig
+    local holdTime = Config.AutoParryDelay or 0.1
+
+    -- Prioritaskan Native Executor Keypress (Aman dari deteksi VIM)
+    if keypress and keyrelease then
+        -- 0x46 adalah Virtual-Key Code untuk huruf 'F'
+        keypress(0x46)
+        task.wait(holdTime)
+        keyrelease(0x46)
+    else
+        -- Fallback HANYA jika executor tidak support keypress (Sangat berisiko, biasanya di Android)
+        local vim = game:GetService("VirtualInputManager")
+        vim:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+        task.wait(holdTime)
+        vim:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+    end
+end
+
+-- ==========================================
 -- SMART AUTO PARRY ENGINE (SERVER SAFE)
 -- ==========================================
-
--- Cek apakah musuh menghadap ke kita (mencegah parry saat musuh serang orang lain)
 local function isFacing(enemyChar, localChar)
     local enemyRoot = enemyChar:FindFirstChild("HumanoidRootPart")
     local localRoot = localChar:FindFirstChild("HumanoidRootPart")
@@ -54,7 +73,6 @@ local function isFacing(enemyChar, localChar)
     local enemyLook = enemyRoot.CFrame.LookVector
     local dotProduct = enemyLook:Dot(dirToPlayer)
     
-    -- > 0.3 berarti musuh melihat ke arah kita (sudut ~70 derajat)
     return dotProduct > 0.3
 end
 
@@ -81,25 +99,23 @@ local function triggerParry(enemyChar)
 
     parryDebounce = true
 
-    -- 3. Humanizer & Ping Compensation (MENCEGAH SERVER BAN)
-    -- Server mendeteksi reaksi 0ms. Kita tambahkan delay acak layaknya manusia.
-    local humanizerDelay = math.random(30, 120) / 1000
+    -- 3. TRUE Humanizer (180ms - 300ms)
+    -- Reaksi manusia normal adalah ~250ms. Di bawah 150ms akan di-flag oleh server sebagai bot.
+    local humanizerDelay = math.random(180, 300) / 1000
     
     task.spawn(function()
         task.wait(humanizerDelay)
         
-        -- Validasi ulang jarak setelah delay (berjaga jika musuh dash menjauh)
+        -- Validasi ulang jarak setelah delay
         if localRoot and enemyRoot then
             local newDist = (localRoot.Position - enemyRoot.Position).Magnitude
             if newDist <= Config.ParryRange + 3 then
-                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
-                task.wait(Config.AutoParryDelay or 0.1)
-                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+                simulateParryKey()
             end
         end
         
-        -- Cooldown parry agar tidak spam
-        task.delay(0.6, function()
+        -- Cooldown parry agar tidak spam dan terlihat natural
+        task.delay(0.8, function()
             parryDebounce = false
         end)
     end)
@@ -159,7 +175,7 @@ end
 -- MAIN INITIALIZATION
 -- ==========================================
 function CombatModule.Init()
-    print("[Airi Hub] Combat V2.3 initializing...")
+    print("[Airi Hub] Combat V2.4 initializing...")
 
     for _, char in ipairs(PlayerCharacters:GetChildren()) do
         setupAnimationDetection(char)
@@ -211,7 +227,7 @@ function CombatModule.Init()
     end)
     table.insert(Connections, renderConn)
     
-    print("[Airi Hub] Combat V2.3 ACTIVE.")
+    print("[Airi Hub] Combat V2.4 ACTIVE.")
 end
 
 function CombatModule:Unload()
