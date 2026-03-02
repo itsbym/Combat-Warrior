@@ -1,12 +1,12 @@
 --[[
-    Airi Hub - Combat Module V2.4 (TRUE SERVER-SAFE)
+    Airi Hub - Combat Module V2.7 (PURE & FAST)
     Target: Combat Warriors
-    Focus: Native Keypress, True Humanizer, Ping-Compensated
+    Focus: Zero Geometry, Instant Reaction, Native Input
     
-    CHANGELOG V2.4:
-    - DIHAPUS: VirtualInputManager (Penyebab utama Server Ban / Detected Synthetic Input).
-    - DITAMBAHKAN: Native `keypress()` API (Level C++, tidak terdeteksi oleh Roblox).
-    - DIPERBAIKI: Humanizer Delay dinaikkan ke 180ms - 300ms (Batas normal reaksi manusia, 30ms terlalu cepat dan terdeteksi bot).
+    CHANGELOG V2.7:
+    - KEMBALI KE DASAR: Karena Anti-Cheat sekarang sudah MATI TOTAL di antidetect.lua,
+      kita tidak perlu lagi melakukan kalkulasi jarak, geometri, atau humanizer yang rumit.
+    - FOKUS: Kecepatan parry maksimal dengan micro-delay agar pas dengan frame animasi musuh.
 ]]
 
 local Players = game:GetService("Players")
@@ -22,38 +22,20 @@ local Connections = {}
 
 local PlayerCharacters = Workspace:WaitForChild("PlayerCharacters")
 
--- FOV Circle setup
-local FOVCircle
-if Drawing then
-    pcall(function()
-        FOVCircle = Drawing.new("Circle")
-        FOVCircle.Visible = false
-        FOVCircle.Color = Color3.fromRGB(255, 255, 255)
-        FOVCircle.Thickness = 1
-        FOVCircle.Filled = false
-        FOVCircle.Transparency = 1
-    end)
-end
-
 local function getLocalCharacter()
     return PlayerCharacters:FindFirstChild(LocalPlayer.Name) or LocalPlayer.Character
 end
 
 -- ==========================================
--- NATIVE INPUT SIMULATOR (BYPASS VIM DETECTION)
+-- NATIVE INPUT SIMULATOR
 -- ==========================================
 local function simulateParryKey()
-    local Config = getgenv().AiriConfig
-    local holdTime = Config.AutoParryDelay or 0.1
-
-    -- Prioritaskan Native Executor Keypress (Aman dari deteksi VIM)
+    local holdTime = getgenv().AiriConfig.AutoParryDelay or 0.1
     if keypress and keyrelease then
-        -- 0x46 adalah Virtual-Key Code untuk huruf 'F'
-        keypress(0x46)
+        pcall(keypress, 0x46) -- 0x46 = 'F'
         task.wait(holdTime)
-        keyrelease(0x46)
+        pcall(keyrelease, 0x46)
     else
-        -- Fallback HANYA jika executor tidak support keypress (Sangat berisiko, biasanya di Android)
         local vim = game:GetService("VirtualInputManager")
         vim:SendKeyEvent(true, Enum.KeyCode.F, false, game)
         task.wait(holdTime)
@@ -62,20 +44,8 @@ local function simulateParryKey()
 end
 
 -- ==========================================
--- SMART AUTO PARRY ENGINE (SERVER SAFE)
+-- RAW AUTO PARRY ENGINE
 -- ==========================================
-local function isFacing(enemyChar, localChar)
-    local enemyRoot = enemyChar:FindFirstChild("HumanoidRootPart")
-    local localRoot = localChar:FindFirstChild("HumanoidRootPart")
-    if not enemyRoot or not localRoot then return false end
-    
-    local dirToPlayer = (localRoot.Position - enemyRoot.Position).Unit
-    local enemyLook = enemyRoot.CFrame.LookVector
-    local dotProduct = enemyLook:Dot(dirToPlayer)
-    
-    return dotProduct > 0.3
-end
-
 local parryDebounce = false
 local function triggerParry(enemyChar)
     if parryDebounce then return end
@@ -90,32 +60,23 @@ local function triggerParry(enemyChar)
     local localRoot = localChar:FindFirstChild("HumanoidRootPart")
     if not enemyRoot or not localRoot then return end
 
-    -- 1. Distance Check
+    -- Batas jarak wajar agar tidak parry musuh di ujung map
     local dist = (localRoot.Position - enemyRoot.Position).Magnitude
     if dist > Config.ParryRange then return end
 
-    -- 2. Facing Check
-    if not isFacing(enemyChar, localChar) then return end
-
     parryDebounce = true
 
-    -- 3. TRUE Humanizer (180ms - 300ms)
-    -- Reaksi manusia normal adalah ~250ms. Di bawah 150ms akan di-flag oleh server sebagai bot.
-    local humanizerDelay = math.random(180, 300) / 1000
-    
     task.spawn(function()
-        task.wait(humanizerDelay)
+        -- Micro-delay (10-30ms) agar sinkron dengan hitbox animasi
+        task.wait(math.random(10, 30) / 1000)
         
-        -- Validasi ulang jarak setelah delay
-        if localRoot and enemyRoot then
-            local newDist = (localRoot.Position - enemyRoot.Position).Magnitude
-            if newDist <= Config.ParryRange + 3 then
-                simulateParryKey()
-            end
+        -- Validasi jarak terakhir
+        if localRoot and enemyRoot and (localRoot.Position - enemyRoot.Position).Magnitude <= Config.ParryRange + 2 then
+            simulateParryKey()
         end
         
-        -- Cooldown parry agar tidak spam dan terlihat natural
-        task.delay(0.8, function()
+        -- Cooldown parry
+        task.delay(0.5, function()
             parryDebounce = false
         end)
     end)
@@ -175,7 +136,7 @@ end
 -- MAIN INITIALIZATION
 -- ==========================================
 function CombatModule.Init()
-    print("[Airi Hub] Combat V2.4 initializing...")
+    print("[Airi Hub] Combat V2.7 initializing...")
 
     for _, char in ipairs(PlayerCharacters:GetChildren()) do
         setupAnimationDetection(char)
@@ -205,16 +166,6 @@ function CombatModule.Init()
     local renderConn = RunService.RenderStepped:Connect(function(deltaTime)
         local Config = getgenv().AiriConfig
 
-        if FOVCircle then
-            if Config.AimbotEnabled and Config.ShowFOV then
-                FOVCircle.Visible = true
-                FOVCircle.Radius = Config.AimbotFOV
-                FOVCircle.Position = UserInputService:GetMouseLocation()
-            else
-                FOVCircle.Visible = false
-            end
-        end
-
         if Config.AimbotEnabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
             local target = getClosestToCursor(Config)
             if target and target:FindFirstChild("HumanoidRootPart") then
@@ -227,11 +178,10 @@ function CombatModule.Init()
     end)
     table.insert(Connections, renderConn)
     
-    print("[Airi Hub] Combat V2.4 ACTIVE.")
+    print("[Airi Hub] Combat V2.7 ACTIVE.")
 end
 
 function CombatModule:Unload()
-    if FOVCircle then FOVCircle:Remove() end
     for _, conn in ipairs(Connections) do
         if conn.Connected then conn:Disconnect() end
     end
