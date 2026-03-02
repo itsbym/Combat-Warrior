@@ -41,16 +41,13 @@ local METHOD_GETATTR = "GetAttribute"
 
 -- Lookup tables O(1)
 local BLOCKED_AC_REMOTES = {
-    ["LogKick"]      = true,
-    ["LogACTrigger"] = true,
+    ["LogKick"]      = true,["LogACTrigger"] = true,
 }
-local BLOCKED_FALL_REMOTES = {
-    ["TakeFallDamage"]  = true,
+local BLOCKED_FALL_REMOTES = {["TakeFallDamage"]  = true,
     ["StartFallDamage"] = true,
 }
 local RAGDOLL_FALSE = {
-    ["IsRagdolledServer"] = true,
-    ["IsRagdolledClient"] = true,
+    ["IsRagdolledServer"] = true,["IsRagdolledClient"] = true,
 }
 local RAGDOLL_TRUE = {
     ["RagdollDisabledClient"] = true,
@@ -61,12 +58,6 @@ local RAGDOLL_TRUE = {
 -- INTERNAL: Rodux Bypass (SINKRON)
 -- Mencari SEMUA Rodux store yang punya state antiCheat
 -- dan dispatch disable action ke semuanya.
---
--- Kenapa tidak break setelah store pertama:
--- AC punya dua store berbeda:
---   1. Per-player session store (DataHandler.getSessionDataRoduxStoreForPlayer)
---   2. Global map store (RoduxStore.store)
--- getIsAcDisabled() membaca KEDUANYA, jadi keduanya harus di-disable.
 -- =============================================
 local function disableRoduxAC()
     if not getgc then
@@ -116,45 +107,29 @@ function AntiDetectModule.Init()
 
     -- ===========================================
     -- 1. RODUX BYPASS - SINKRON (tidak di task.spawn)
-    --    Harus jalan SEBELUM hook terpasang agar AC tidak sempat
-    --    melakukan pengecekan pertama dengan state aktif.
     -- ===========================================
     disableRoduxAC()
 
     -- ===========================================
     -- 2. UNIFIED __namecall HOOK (LENGKAP)
-    --    Menggantikan pre-hook dari main.lua.
-    --
-    --    PENTING: OldNamecall diambil dari _AiriPreHookOriginalNamecall
-    --    yang disimpan oleh pre-hook di main.lua.
-    --    Ini memastikan chain yang benar:
-    --      hook kita → original game __namecall
-    --    (bukan: hook kita → pre-hook → original, yang akan double-filter)
     -- ===========================================
 
     -- Ambil original namecall yang disimpan pre-hook
-    -- Kalau tidak ada (executor tidak support pre-hook), gunakan hookmetamethod normal
     local preHookOriginal = getgenv()._AiriPreHookOriginalNamecall
 
-    OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+    local replacedHook = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
         local method = getnamecallmethod()
 
         if not checkcaller() then
             local Config = getgenv().AiriConfig
 
             -- ---- ANTI-KICK ----
-            if method == METHOD_KICK
-                and typeof(self) == "Instance"
-                and self:IsA("Player")
-            then
+            if method == METHOD_KICK and self == LocalPlayer then
                 return nil
             end
 
             -- ---- ANTI-DESTROY ----
-            if method == METHOD_DESTROY
-                and typeof(self) == "Instance"
-                and self:IsA("Player")
-            then
+            if method == METHOD_DESTROY and self == LocalPlayer then
                 return nil
             end
 
@@ -174,7 +149,6 @@ function AntiDetectModule.Init()
             end
 
             -- ---- HASTAG SPOOF ----
-            -- AC cek CollectionService:HasTag(bodyMover, TAG) untuk validasi body mover
             if method == METHOD_HASTAG then
                 local arg1, arg2 = ...
                 if arg1 == BODY_MOVER_TAG or arg2 == BODY_MOVER_TAG then
@@ -211,9 +185,9 @@ function AntiDetectModule.Init()
         return OldNamecall(self, ...)
     end))
 
-    -- Simpan referensi pre-hook original untuk di-gunakan di hook kita
-    -- OldNamecall dari hookmetamethod sudah merupakan pre-hook dari main.lua
-    -- (karena pre-hook sudah menggantikan __namecall sebelum kita).
+    -- Pastikan OldNamecall mengarah ke original game (melewati pre-hook jika ada)
+    OldNamecall = preHookOriginal or replacedHook
+
     -- Bersihkan global reference yang tidak lagi dibutuhkan.
     getgenv()._AiriPreHookOriginalNamecall = nil
 
@@ -221,7 +195,6 @@ function AntiDetectModule.Init()
 
     -- ===========================================
     -- 3. LOG SILENCING
-    --    Sembunyikan jejak executor dari log analitik game.
     -- ===========================================
     if hookfunction then
         pcall(function()

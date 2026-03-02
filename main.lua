@@ -4,6 +4,9 @@
 -- Akan di-replace oleh hook lengkap dari AntiDetectModule.Init().
 -- ================================================================
 do
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
     local _mt = getrawmetatable(game)
     setreadonly(_mt, false)
     local _oldnc = _mt.__namecall
@@ -11,11 +14,11 @@ do
         local m = getnamecallmethod()
         if not checkcaller() then
             -- Block Kick ke local player
-            if m == "Kick" and typeof(self) == "Instance" and self:IsA("Player") then
+            if m == "Kick" and self == LocalPlayer then
                 return nil
             end
             -- Block Destroy ke local player
-            if m == "Destroy" and typeof(self) == "Instance" and self:IsA("Player") then
+            if m == "Destroy" and self == LocalPlayer then
                 return nil
             end
             -- Block AC remote logging
@@ -101,11 +104,6 @@ end
 
 -- ================================================================
 -- PHASE 1: LOAD & INIT ANTI-DETECT - SINKRON, PRIORITAS TERTINGGI
---
--- Ini BLOCKING (tidak di dalam task.spawn).
--- Script tidak lanjut ke UI sampai antidetect selesai di-load dan di-init.
--- Tujuan: hook __namecall yang lengkap harus terpasang SEBELUM UI muncul
--- dan SEBELUM module lain berjalan.
 -- ================================================================
 print("[Airi Hub] [PHASE 1] Loading AntiDetect (synchronous, priority)...")
 local AntiDetectModule = loadModule("antidetect")
@@ -123,7 +121,6 @@ end
 
 -- ================================================================
 -- PHASE 2: LOAD LUNA UI
--- Dilakukan setelah antidetect aktif.
 -- ================================================================
 local function fetchLuna()
     print("[Airi Hub] DEBUG: Attempting to load Luna from local file...")
@@ -207,7 +204,6 @@ Window:CreateHomeTab()
 
 -- ================================================================
 -- PHASE 3: LOAD MODULE LAIN - ASYNC (background, tidak blocking)
--- Combat, Movement, Visual tidak perlu seblum UI muncul.
 -- ================================================================
 local CombatModule, MovementModule, VisualsModule
 
@@ -227,7 +223,7 @@ task.spawn(function()
     if MovementModule and MovementModule.Init  then pcall(MovementModule.Init)  end
     if VisualsModule  and VisualsModule.Init   then pcall(VisualsModule.Init)   end
 
-    print("[Airi Hub] [PHASE 3] All background modules initialized.")
+    print("[Airi Hub][PHASE 3] All background modules initialized.")
 end)
 
 -----------------------------------------
