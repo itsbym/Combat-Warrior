@@ -1,7 +1,20 @@
 --[[
-    Airi Hub - Movement Module
+    Airi Hub - Movement Module V2.1 (Cleaned)
     Target: Combat Warriors
-    Focus: Deep Hooking (Inf Stamina, No Jump/Dodge Delay, No Fall Damage, Anti-Ragdoll)
+    Focus: Inf Stamina (GC Hook), No Jump Delay (State Override)
+    
+    CHANGELOG V2.1:
+    - DIHAPUS: hookmetamethod __namecall (PENYEBAB KONFLIK dengan antidetect.lua)
+    - DIHAPUS: Fall Damage hook (sudah di-handle oleh antidetect.lua via __namecall)
+    - DIHAPUS: Anti-Ragdoll hook (sudah di-handle oleh antidetect.lua via __namecall)
+    - DIHAPUS: No Dodge Delay dari Heartbeat (sudah di-handle oleh antidetect.lua via GetAttribute spoof)
+    - TETAP: Infinite Stamina GC hook (one-time scan, bukan loop getgc)
+    - TETAP: No Jump Delay (JumpRequest event)
+    - TETAP: Heartbeat stamina enforcement (rawset property manipulation)
+    
+    ATURAN ARSITEKTUR:
+    Module ini TIDAK BOLEH hookmetamethod. Semua metamethod hooks
+    dipusatkan di antidetect.lua untuk menghindari konflik.
 ]]
 
 local Players = game:GetService("Players")
@@ -11,8 +24,7 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local MovementModule = {}
 
--- Store original references for Unload()
-local OldNamecall = nil
+-- Storage untuk cleanup
 local GCHooks = {}
 local Connections = {}
 
@@ -20,37 +32,12 @@ local Connections = {}
 -- MAIN INITIALIZATION
 -- ==========================================
 function MovementModule.Init()
-    -- METAMETHOD HOOKS (Fall Damage & Anti-Ragdoll)
-    OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
+    print("[Airi Hub] Movement V2.1 initializing...")
 
-        -- Hanya filter panggilan dari client game (bukan dari executor)
-        if not checkcaller() then
-            -- Hook Fall Damage (Remote Event Filter)
-            if method == "FireServer" then
-                if type(args[1]) == "string" and (args[1] == "TakeFallDamage" or args[1] == "StartFallDamage") then
-                    if getgenv().AiriConfig.NoFallDamage then
-                        return nil -- Drop the remote call silently
-                    end
-                end
-                
-            -- Hook Anti-Ragdoll (Attribute Hook)
-            elseif method == "GetAttribute" then
-                if getgenv().AiriConfig.AntiRagdoll and type(args[1]) == "string" then
-                    local attr = args[1]
-                    if attr == "IsRagdolledServer" or attr == "IsRagdolledClient" then
-                        return false
-                    elseif attr == "RagdollDisabledClient" or attr == "RagdollDisabledServer" then
-                        return true
-                    end
-                end
-            end
-        end
+    -- NOTE: Fall Damage, Anti-Ragdoll, dan No Dodge Delay
+    -- sekarang di-handle oleh antidetect.lua via unified __namecall hook.
+    -- Module ini hanya handle stamina dan jump delay.
 
-        return OldNamecall(self, ...)
-    end))
-    
     -- 1. NO JUMP DELAY (State Override via UserInput)
     local jumpRequestConn = UserInputService.JumpRequest:Connect(function()
         if getgenv().AiriConfig.NoJumpDelay then
@@ -58,7 +45,6 @@ function MovementModule.Init()
             if char then
                 local humanoid = char:FindFirstChildOfClass("Humanoid")
                 if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Dead then
-                    -- Bypass internal wait states dengan memaksa state Jumping secara real-time
                     humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                 end
             end
@@ -66,94 +52,105 @@ function MovementModule.Init()
     end)
     table.insert(Connections, jumpRequestConn)
 
-    -- 2. INFINITE STAMINA (Garbage Collection Hook)
+    -- 2. INFINITE STAMINA (One-Time GC Scan + Hook)
     task.spawn(function()
-        if not getgc then return end
-        
+        if not getgc then
+            warn("[Airi Hub] getgc not available - Stamina hook skipped")
+            return
+        end
+
         local success, err = pcall(function()
-            for _, obj in pairs(getgc(true)) do
-                if type(obj) == "table" and rawget(obj, "enableDrain") and type(rawget(obj, "enableDrain")) == "function" then
+            local gc = getgc(true)
+            for i = 1, #gc do
+                local obj = gc[i]
+                if type(obj) == "table"
+                    and rawget(obj, "enableDrain")
+                    and type(rawget(obj, "enableDrain")) == "function"
+                then
                     local originalDrain = rawget(obj, "enableDrain")
-                    
-                    -- Simpan state original untuk fungsi Unload dan toggle off
-                    table.insert(GCHooks, {
-                        object = obj,
+
+                    -- Cache original values untuk restore saat Unload/toggle off
+                    GCHooks[#GCHooks + 1] = {
+                        object   = obj,
                         oldDrain = originalDrain,
-                        oldGain = rawget(obj, "gainPerSecond"),
-                        oldDelay = rawget(obj, "gainDelay")
-                    })
-                    
-                    -- Hook: Timpa method drain untuk mencegah pengurangan stamina
+                        oldGain  = rawget(obj, "gainPerSecond"),
+                        oldDelay = rawget(obj, "gainDelay"),
+                    }
+
+                    -- Hook: Timpa drain agar stamina tidak berkurang
                     obj.enableDrain = newcclosure(function(self, ...)
                         if getgenv().AiriConfig.InfStamina then
-                            return -- Return kosong = bypass logic pengurangan
+                            return -- Bypass drain
                         end
                         return originalDrain(self, ...)
                     end)
                 end
             end
         end)
-        
+
         if not success then
-            warn("[Airi Hub] Failed to execute GC hook for Stamina: ", tostring(err))
+            warn("[Airi Hub] Stamina GC hook failed: " .. tostring(err))
+        else
+            print("[Airi Hub] Stamina GC hook active. Found " .. #GCHooks .. " drain object(s).")
         end
     end)
 
-    -- 3. RUNTIME ENFORCEMENT (Heartbeat Loop)
+    -- 3. STAMINA ENFORCEMENT (Heartbeat - rawset property manipulation)
+    --    Hanya handle stamina values. Dodge delay sudah di antidetect.
     local heartbeatConn = RunService.Heartbeat:Connect(function()
-        local char = LocalPlayer.Character
+        local Config = getgenv().AiriConfig
+        if not Config then return end
 
-        -- Manipulasi Properti Stamina & Fallback
-        for _, hookData in ipairs(GCHooks) do
-            local obj = hookData.object
-            if getgenv().AiriConfig.InfStamina then
-                rawset(obj, "gainPerSecond", 9999)
-                rawset(obj, "gainDelay", 0)
-                
-                local maxStam = rawget(obj, "_maxStamina")
-                if maxStam then
-                    rawset(obj, "_stamina", maxStam)
+        -- Enforce stamina values via rawset (langsung ke memory)
+        if Config.InfStamina then
+            for i = 1, #GCHooks do
+                local obj = GCHooks[i].object
+                if obj then
+                    rawset(obj, "gainPerSecond", 9999)
+                    rawset(obj, "gainDelay", 0)
+
+                    local maxStam = rawget(obj, "_maxStamina")
+                    if maxStam then
+                        rawset(obj, "_stamina", maxStam)
+                    end
                 end
-            else
-                if rawget(obj, "gainPerSecond") == 9999 then
+            end
+        else
+            -- Restore values jika InfStamina dimatikan
+            for i = 1, #GCHooks do
+                local hookData = GCHooks[i]
+                local obj = hookData.object
+                if obj and rawget(obj, "gainPerSecond") == 9999 then
                     rawset(obj, "gainPerSecond", hookData.oldGain)
                     rawset(obj, "gainDelay", hookData.oldDelay)
                 end
             end
         end
-
-        -- No Dodge Delay
-        if getgenv().AiriConfig.NoDodgeDelay and char then
-            if char:GetAttribute("DashCooldown") then
-                char:SetAttribute("DashCooldown", 0)
-            end
-            if char:GetAttribute("IsDashing") then
-                char:SetAttribute("IsDashing", false)
-            end
-        end
     end)
     table.insert(Connections, heartbeatConn)
+
+    print("[Airi Hub] Movement V2.1 ACTIVE.")
 end
 
 -- ==========================================
--- CLEANUP FUNCTION (Anti Memory-Leak)
+-- CLEANUP (Anti Memory-Leak)
 -- ==========================================
-function MovementModule:Unload()
-    -- 1. Restore Metamethods
-    if OldNamecall then
-        hookmetamethod(game, "__namecall", OldNamecall)
-    end
-    
-    -- 2. Disconnect Events
-    for _, conn in ipairs(Connections) do
-        if conn.Connected then
+function MovementModule.Unload()
+    -- NOTE: Tidak ada hookmetamethod restore di sini.
+    -- Semua metamethod di-manage oleh antidetect.lua
+
+    -- 1. Disconnect Events
+    for i = 1, #Connections do
+        local conn = Connections[i]
+        if conn and conn.Connected then
             conn:Disconnect()
         end
     end
     table.clear(Connections)
-    
-    -- 3. Restore GC Objects (Stamina)
-    for _, hookData in ipairs(GCHooks) do
+
+    -- 2. Restore GC Objects (Stamina)
+    for i = 1, #GCHooks do
+        local hookData = GCHooks[i]
         local obj = hookData.object
         if obj then
             rawset(obj, "enableDrain", hookData.oldDrain)
@@ -162,6 +159,8 @@ function MovementModule:Unload()
         end
     end
     table.clear(GCHooks)
+
+    print("[Airi Hub] Movement V2.1 Unloaded.")
 end
 
 return MovementModule

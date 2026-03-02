@@ -1,386 +1,254 @@
 --[[
-    Airi Hub - Anti-Detect Module
+    Airi Hub - Anti-Detect Module V2.1 (Surgical Stealth - Fixed)
     Target: Combat Warriors
-    Focus: Anti-AFK, Local Anti-Cheat Bypass, Client Kick/Ban Prevention, Rodux Store Sanitization
+    
+    CHANGELOG V2.1 (Hotfix):
+    - DIHAPUS: __index hook (PENYEBAB UTAMA frame drop + game freeze)
+    - DIGABUNG: Semua __namecall ke SATU hook tunggal (tidak ada konflik)
+    - DIPINDAH: GetAttribute spoof dari __index ke __namecall (ringan)
+    - DIPINDAH: Fall damage block & anti-ragdoll dari movement.lua ke sini
+    - DITAMBAH: Player:Destroy() block (AC punishment protection)
+    
+    ARSITEKTUR:
+    Module ini adalah SATU-SATUNYA yang boleh hook metamethod.
+    Module lain (combat, movement, visual) TIDAK BOLEH hookmetamethod.
 ]]
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VirtualUser = game:GetService("VirtualUser")
-local RunService = game:GetService("RunService")
 local CollectionService = game:GetService("CollectionService")
-local TweenService = game:GetService("TweenService")
+local LogService = game:GetService("LogService")
 
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
-
 local AntiDetectModule = {}
 
-local OldNamecall = nil
-local OldKick = nil
-local OldIndex = nil
-local OldNewIndex = nil
-local OldRequire = nil
-local Connections = {}
-local SpoofedBodyMovers = setmetatable({}, {__mode = "k"})
+-- Storage untuk cleanup
+local OldNamecall
+local OldGetLogHistory
 
-local BLOCKED_REMOTES = {
-    ["logkick"] = true,
-    ["logactrigger"] = true,
-    ["ban"] = true,
-    ["kick"] = true,
-    ["anticheat"] = true,
-    ["exploit"] = true,
-    ["crash"] = true,
-    ["detect"] = true
+-- Constants dari decompiled AC (anticheat_reference.lua)
+local BODY_MOVER_TAG = "4f9a51c7-5fb1-43ea-834f-091d74b80d81"
+local AC_TYPES = {"bcre", "wrdn", "meow"}
+
+-- Pre-cached method names (hindari string allocation per call)
+local METHOD_KICK      = "Kick"
+local METHOD_DESTROY   = "Destroy"
+local METHOD_FIRE      = "FireServer"
+local METHOD_HASTAG    = "HasTag"
+local METHOD_GETATTR   = "GetAttribute"
+
+-- Lookup tables (O(1) lookup, bukan string compare berulang)
+local BLOCKED_AC_REMOTES = {
+    ["LogKick"]      = true,
+    ["LogACTrigger"] = true,
 }
 
--- From AntiCheatConstants decompilation
-local BODY_MOVER_TAG = "4f9a51c7-5fb1-43ea-834f-091d74b80d81"
-local REQUIRED_BODY_MOVER_TAG = "4f9a51c7-5fb1-43ea-834f-091d74b80d81"
+local BLOCKED_FALL_REMOTES = {
+    ["TakeFallDamage"]  = true,
+    ["StartFallDamage"] = true,
+}
 
--- Spoofed Rodux store reference
-local SpoofedStores = {}
+local RAGDOLL_RETURN_FALSE = {
+    ["IsRagdolledServer"] = true,
+    ["IsRagdolledClient"] = true,
+}
 
+local RAGDOLL_RETURN_TRUE = {
+    ["RagdollDisabledClient"] = true,
+    ["RagdollDisabledServer"] = true,
+}
+
+-- =============================================
+-- INIT
+-- =============================================
 function AntiDetectModule.Init()
-    -- Anti-AFK
-    local idledConn = LocalPlayer.Idled:Connect(function()
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new())
-    end)
-    table.insert(Connections, idledConn)
+    print("[Airi Hub] Anti-Detect V2.1 initializing...")
 
-    -- Block notification GUI creation (prevents AC notifications)
-    pcall(function()
-        if PlayerGui then
-            local notifConn = PlayerGui.ChildAdded:Connect(function(child)
-                if child:IsA("ScreenGui") and (child.Name:lower():find("notif") or child.Name:lower():find("ac") or child.Name:lower():find("punish")) then
-                    task.wait()
-                    child.Enabled = false
-                    child:Destroy()
+    -- ===========================================
+    -- 1. RODUX HIJACKING (Disable AC via Rodux State)
+    --    Cari Rodux store berdasarkan STRUKTUR, bukan nama
+    -- ===========================================
+    task.spawn(function()
+        if not getgc then
+            warn("[Airi Hub] getgc not available - Rodux bypass skipped")
+            return
+        end
+
+        local store
+        local gc = getgc(true)
+        for i = 1, #gc do
+            local v = gc[i]
+            if type(v) == "table"
+                and rawget(v, "dispatch")
+                and rawget(v, "getState")
+            then
+                local s, state = pcall(v.getState, v)
+                if s and type(state) == "table" and state.antiCheat then
+                    store = v
+                    break
                 end
-            end)
-            table.insert(Connections, notifConn)
+            end
+        end
+
+        if store then
+            print("[Airi Hub] Rodux Store ditemukan. Menonaktifkan AC...")
+            for _, acType in ipairs(AC_TYPES) do
+                pcall(function()
+                    store:dispatch({
+                        type = "ANTI_CHEAT_DISABLED_COUNTS_SINGLE_ADD",
+                        payload = { id = acType }
+                    })
+                end)
+            end
+            print("[Airi Hub] AC Rodux states disabled (bcre, wrdn, meow).")
+        else
+            warn("[Airi Hub] Rodux Store tidak ditemukan - AC state bypass dilewati")
         end
     end)
 
-    -- Hook __namecall (Network, Remotes, Kick)
-    if not OldNamecall then
-        OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            local args = {...}
+    -- ===========================================
+    -- 2. SINGLE UNIFIED __namecall HOOK
+    --    Satu hook untuk SEMUA interception.
+    --    Ini menggantikan hook terpisah di antidetect + movement.
+    --
+    --    Yang di-handle:
+    --    [AC]       Player:Kick()         -> Block
+    --    [AC]       Player:Destroy()      -> Block
+    --    [AC]       :FireServer("LogKick"/...) -> Block
+    --    [AC]       :HasTag(BODY_MOVER)   -> Return true
+    --    [MOVE]     :FireServer("TakeFallDamage"/...) -> Block
+    --    [MOVE]     :GetAttribute("DashCooldown"/...) -> Spoof
+    --    [AC]       :GetAttribute("Lifetime") on BodyMover -> Return 5
+    -- ===========================================
+    OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+        local method = getnamecallmethod()
 
-            if not checkcaller() then
-                -- Block Kick
-                if method == "Kick" or method == "kick" then
-                    warn("[Airi Hub] Blocked Kick: " .. tostring(args[1] or "No reason"))
-                    return nil
-                end
-                
-                -- Block AC remote logging
-                if method == "FireServer" and type(args[1]) == "string" then
-                    local remoteName = string.lower(tostring(args[1]))
-                    if BLOCKED_REMOTES[remoteName] then
-                        warn("[Airi Hub] Blocked Remote: " .. remoteName)
+        -- Hanya intercept panggilan dari GAME (bukan dari executor kita)
+        if not checkcaller() then
+            local Config = getgenv().AiriConfig
+
+            -- ---- ANTI-KICK ----
+            -- AC memanggil Player:Kick(reason) untuk mengeluarkan player
+            if method == METHOD_KICK and typeof(self) == "Instance" and self:IsA("Player") then
+                return nil
+            end
+
+            -- ---- ANTI-DESTROY ----
+            -- AC memanggil Player:Destroy() setelah Kick sebagai punishment tambahan
+            if method == METHOD_DESTROY and typeof(self) == "Instance" and self:IsA("Player") then
+                return nil
+            end
+
+            -- ---- FIRESERVER INTERCEPTION ----
+            if method == METHOD_FIRE then
+                local args = {...}
+                local remoteName = args[1]
+
+                if type(remoteName) == "string" then
+                    -- Block AC logging remotes (LogKick, LogACTrigger)
+                    if BLOCKED_AC_REMOTES[remoteName] then
                         return nil
                     end
-                    -- Block LogKick and LogACTrigger specifically
-                    if remoteName:find("log") and (remoteName:find("kick") or remoteName:find("ac") or remoteName:find("trigger")) then
+
+                    -- Block fall damage remotes (jika NoFallDamage aktif)
+                    if Config and Config.NoFallDamage and BLOCKED_FALL_REMOTES[remoteName] then
                         return nil
                     end
                 end
-                
-                -- Prevent network ownership stripping (rectified punishment)
-                if method == "SetNetworkOwner" and type(args[1]) == "nil" then
-                    warn("[Airi Hub] Blocked NetworkOwner strip")
-                    return nil
-                end
-                
-                -- Block BodyMover tag validation from server
-                if method == "HasTag" and args[2] == BODY_MOVER_TAG then
+            end
+
+            -- ---- HASTAG SPOOF ----
+            -- AC cek CollectionService:HasTag(bodyMover, TAG) untuk validasi
+            -- body movers yang dibuat oleh game. Kita return true agar
+            -- body movers kita dianggap legitimate.
+            if method == METHOD_HASTAG then
+                local args = {...}
+                -- HasTag(instance, tag) - tag bisa di arg 1 atau 2
+                if args[1] == BODY_MOVER_TAG or args[2] == BODY_MOVER_TAG then
                     return true
                 end
             end
 
-            return OldNamecall(self, ...)
-        end))
-    end
+            -- ---- GETATTRIBUTE SPOOF ----
+            -- Menggantikan __index hook yang berat.
+            -- GetAttribute dipanggil via :GetAttribute() (namecall),
+            -- jadi kita intercept di sini.
+            if method == METHOD_GETATTR and Config then
+                local args = {...}
+                local attr = args[1]
 
-    -- Hook __index (CollectionService.HasTag, GetAttribute)
-    if not OldIndex then
-        OldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
-            if not checkcaller() then
-                -- Spoof CollectionService.HasTag for BodyMover validation
-                if self == CollectionService and key == "HasTag" then
-                    return function(_, instance, tag)
-                        if tag == BODY_MOVER_TAG or tag == REQUIRED_BODY_MOVER_TAG then
-                            -- If it's a BodyMover, always say it has the tag
-                            if instance and instance:IsA("BodyMover") then
-                                return true
-                            end
-                        end
-                        return OldIndex(CollectionService, "HasTag")(CollectionService, instance, tag)
+                if type(attr) == "string" then
+                    -- Anti-Ragdoll: IsRagdolledServer/Client -> false
+                    if Config.AntiRagdoll then
+                        if RAGDOLL_RETURN_FALSE[attr] then return false end
+                        if RAGDOLL_RETURN_TRUE[attr] then return true end
                     end
-                end
-                
-                -- Spoof GetAttribute for IsRagdolled checks (referenced in movement.lua)
-                if key == "GetAttribute" and typeof(self) == "Instance" then
-                    return function(_, attrName)
-                        local result = OldIndex(self, "GetAttribute")(self, attrName)
-                        -- Spoof ragdoll attributes if AntiRagdoll is enabled
-                        if getgenv().AiriConfig and getgenv().AiriConfig.AntiRagdoll then
-                            if attrName == "IsRagdolledServer" or attrName == "IsRagdolledClient" then
-                                return false
-                            elseif attrName == "RagdollDisabledClient" or attrName == "RagdollDisabledServer" then
-                                return true
-                            end
-                        end
-                        -- Spoof DashCooldown
-                        if getgenv().AiriConfig and getgenv().AiriConfig.NoDodgeDelay then
-                            if attrName == "DashCooldown" then
-                                return 0
-                            elseif attrName == "IsDashing" then
-                                return false
-                            end
-                        end
-                        return result
+
+                    -- No Dodge Delay: DashCooldown -> 0, IsDashing -> false
+                    if Config.NoDodgeDelay then
+                        if attr == "DashCooldown" then return 0 end
+                        if attr == "IsDashing" then return false end
                     end
-                end
-                
-                -- Spoof BodyMover Lifetime attribute
-                if key == "GetAttribute" and typeof(self) == "Instance" and self:IsA("BodyMover") then
-                    return function(_, attrName)
-                        if attrName == "Lifetime" then
-                            return true
-                        end
-                        return OldIndex(self, "GetAttribute")(self, attrName)
+
+                    -- Body Mover Lifetime: AC cek GetAttribute("Lifetime") == 5
+                    if attr == "Lifetime"
+                        and typeof(self) == "Instance"
+                        and self:IsA("BodyMover")
+                    then
+                        return 5
                     end
                 end
             end
-            return OldIndex(self, key)
-        end))
-    end
+        end
 
-    -- Hook __newindex to prevent AC from setting attributes
-    if not OldNewIndex then
-        OldNewIndex = hookmetamethod(game, "__newindex", newcclosure(function(self, key, value)
-            if not checkcaller() then
-                -- Prevent AC from setting IsRagdolled attributes
-                if key == "IsRagdolledServer" or key == "IsRagdolledClient" then
-                    if getgenv().AiriConfig and getgenv().AiriConfig.AntiRagdoll then
-                        return OldNewIndex(self, key, false)
-                    end
-                end
-            end
-            return OldNewIndex(self, key, value)
-        end))
-    end
+        return OldNamecall(self, ...)
+    end))
 
-    -- Hook Player.Kick directly
-    if not OldKick and hookfunction then
+    print("[Airi Hub] Unified __namecall hook active.")
+
+    -- ===========================================
+    -- 3. LOG SILENCING (Targeted hookfunction)
+    --    Hook GetLogHistory untuk menyembunyikan jejak executor
+    --    dari sistem analitik game.
+    -- ===========================================
+    if hookfunction then
         pcall(function()
-            OldKick = hookfunction(LocalPlayer.Kick, newcclosure(function(self, ...)
-                if not checkcaller() then
-                    warn("[Airi Hub] Blocked direct Kick call")
-                    return nil
+            OldGetLogHistory = hookfunction(LogService.GetLogHistory, newcclosure(function(self)
+                local s, history = pcall(OldGetLogHistory, self)
+                if not s or type(history) ~= "table" then return {} end
+
+                local clean = {}
+                for i = 1, #history do
+                    local log = history[i]
+                    if log and log.message then
+                        local msg = log.message:lower()
+                        if not (msg:find("airi") or msg:find("executor") or msg:find("exploit")) then
+                            clean[#clean + 1] = log
+                        end
+                    end
                 end
-                return OldKick(self, ...)
+                return clean
             end))
+            print("[Airi Hub] Log silencing active.")
         end)
     end
 
-    -- Deep AC module neutralization
-    task.spawn(function()
-        pcall(function()
-            -- Wait for game to load
-            task.wait(3)
-            
-            local function getAntiCheatModules()
-                local modules = {}
-                
-                local paths = {
-                    "ReplicatedStorage.Client.Source.AntiCheat",
-                    "ReplicatedStorage.Shared.Source.AntiCheat",
-                    "ServerStorage.Server.Source.AntiCheat",
-                    "ReplicatedStorage.Shared.Source.Data",
-                }
-                
-                for _, path in ipairs(paths) do
-                    local success, folder = pcall(function()
-                        local current = game
-                        for _, part in ipairs(string.split(path, ".")) do
-                            current = current:FindFirstChild(part)
-                            if not current then break end
-                        end
-                        return current
-                    end)
-                    
-                    if success and folder then
-                        for _, child in ipairs(folder:GetDescendants()) do
-                            if child:IsA("ModuleScript") then
-                                table.insert(modules, child)
-                            end
-                        end
-                    end
-                end
-                
-                return modules
-            end
-
-            local acModules = getAntiCheatModules()
-            
-            -- Neutralize AC module functions
-            for _, module in ipairs(acModules) do
-                pcall(function()
-                    local modData = require(module)
-                    if type(modData) == "table" then
-                        for funcName, func in pairs(modData) do
-                            if type(func) == "function" then
-                                -- Don't break module structure, just make punishments do nothing
-                                if funcName:lower():find("punish") or funcName:lower():find("kick") or funcName:lower():find("ban") or funcName:lower():find("log") then
-                                    hookfunction(func, newcclosure(function(...)
-                                        warn("[Airi Hub] Blocked AC function: " .. funcName)
-                                        return nil
-                                    end))
-                                elseif funcName:lower():find("check") or funcName:lower():find("detect") or funcName:lower():find("validate") then
-                                    hookfunction(func, newcclosure(function(...)
-                                        return false -- Validation checks return false (no cheat detected)
-                                    end))
-                                end
-                            end
-                        end
-                        
-                        -- Specifically target the punish function structure from decompilation
-                        if modData.punish then
-                            hookfunction(modData.punish, newcclosure(function(player, punishmentData, ...)
-                                warn("[Airi Hub] Blocked punish call for: " .. tostring(punishmentData and punishmentData.punishType or "unknown"))
-                                return nil
-                            end))
-                        end
-                        
-                        -- Block createBodyMover validation
-                        if modData.createBodyMover then
-                            local oldCreate = modData.createBodyMover
-                            modData.createBodyMover = function(...)
-                                local mover = oldCreate(...)
-                                if mover then
-                                    SpoofedBodyMovers[mover] = true
-                                    pcall(function()
-                                        mover:SetAttribute("Lifetime", 5)
-                                        CollectionService:AddTag(mover, BODY_MOVER_TAG)
-                                    end)
-                                end
-                                return mover
-                            end
-                        end
-                        
-                        -- Spoof getIsBodyMoverCreatedByGame
-                        if modData.getIsBodyMoverCreatedByGame then
-                            hookfunction(modData.getIsBodyMoverCreatedByGame, newcclosure(function(mover)
-                                return true
-                            end))
-                        end
-                        
-                        -- Spoof getIsAcDisabled to always return true (disable all AC checks)
-                        if modData.getIsAcDisabled then
-                            hookfunction(modData.getIsAcDisabled, newcclosure(function(...)
-                                return true
-                            end))
-                        end
-                    end
-                end)
-            end
-
-            -- Hook Rodux Store to prevent AC state changes
-            pcall(function()
-                local Rodux = require(ReplicatedStorage.Shared.Vendor.Rodux)
-                if Rodux and Rodux.Store then
-                    local originalCreateStore = Rodux.Store
-                    Rodux.Store = function(...)
-                        local store = originalCreateStore(...)
-                        
-                        -- Wrap dispatch
-                        local originalDispatch = store.dispatch
-                        store.dispatch = function(self, action, ...)
-                            if type(action) == "table" and action.type then
-                                -- Block all anti-cheat related dispatches
-                                if action.type:find("ANTI_CHEAT") or action.type:find("AntiCheat") then
-                                    warn("[Airi Hub] Blocked Rodux action: " .. action.type)
-                                    return self
-                                end
-                            end
-                            return originalDispatch(self, action, ...)
-                        end
-                        
-                        -- Wrap getState to spoof AC disabled state
-                        local originalGetState = store.getState
-                        store.getState = function(...)
-                            local state = originalGetState(...)
-                            if state and state.antiCheat then
-                                -- Deep copy and modify
-                                local newState = {}
-                                for k, v in pairs(state) do
-                                    newState[k] = v
-                                end
-                                newState.antiCheat = {
-                                    disabledCounts = {},
-                                    disabledFromCounts = {}
-                                }
-                                -- Mark all AC types as disabled
-                                for _, acType in ipairs({"bcre", "wrdn", "meow"}) do
-                                    newState.antiCheat.disabledFromCounts[acType] = true
-                                    newState.antiCheat.disabledCounts[acType] = 999
-                                end
-                                return newState
-                            end
-                            return state
-                        end
-                        
-                        table.insert(SpoofedStores, store)
-                        return store
-                    end
-                end
-            end)
-        end)
-    end)
-    
-    print("[Airi Hub] Anti-Detect Initialized. Advanced Rodux & Network Bypass Active.")
+    print("[Airi Hub] Anti-Detect V2.1 ACTIVE. Single hook, zero __index overhead.")
 end
 
+-- =============================================
+-- UNLOAD (Clean Restore)
+-- =============================================
 function AntiDetectModule.Unload()
-    for _, conn in ipairs(Connections) do
-        if conn.Connected then
-            conn:Disconnect()
-        end
-    end
-    table.clear(Connections)
-    
+    -- Restore __namecall ke original
     if OldNamecall then
         hookmetamethod(game, "__namecall", OldNamecall)
         OldNamecall = nil
     end
-    
-    if OldIndex then
-        hookmetamethod(game, "__index", OldIndex)
-        OldIndex = nil
-    end
 
-    if OldNewIndex then
-        hookmetamethod(game, "__newindex", OldNewIndex)
-        OldNewIndex = nil
-    end
+    -- Note: GetLogHistory hook tidak perlu di-restore
+    -- karena tidak menyebabkan side effects pada gameplay
 
-    if OldKick and hookfunction then
-        hookfunction(LocalPlayer.Kick, OldKick)
-        OldKick = nil
-    end
-
-    -- Clear spoofed stores
-    table.clear(SpoofedStores)
-    
-    SpoofedBodyMovers = {}
-    
-    print("[Airi Hub] Anti-Detect Unloaded.")
+    print("[Airi Hub] Anti-Detect V2.1 Unloaded.")
 end
 
 return AntiDetectModule
