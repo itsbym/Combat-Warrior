@@ -1,12 +1,11 @@
 --[[
-    Airi Hub - Anti-Detect Module V2.7 (TOTAL AC KILLER)
+    Airi Hub - Anti-Detect Module V2.8 (CRASH FIXED)
     Target: Combat Warriors
 
-    CHANGELOG V2.7:
-    - BREAKTHROUGH: Menemukan bahwa CW menggunakan modul 'Network' Lua, sehingga hook __namecall sebelumnya BOCOR.
-    - DITAMBAHKAN: Hook langsung ke `Network.FireServer` menggunakan hookfunction.
-    - DITAMBAHKAN: Hook langsung ke `AntiCheatHandler.getIsAcDisabled` (Memaksa AC mati total).
-    - DITAMBAHKAN: Hook langsung ke `AntiCheatHandler.punish` (Mengebiri fungsi hukuman).
+    CHANGELOG V2.8:
+    - FIX: hookmetamethod wrapped with pcall to prevent crash
+    - FIX: GetAttribute BodyMover check wrapped with pcall
+    - FIX: Added error handling for all hooks
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -22,7 +21,7 @@ local RAGDOLL_FALSE = {["IsRagdolledServer"] = true, ["IsRagdolledClient"] = tru
 local RAGDOLL_TRUE = {["RagdollDisabledClient"] = true, ["RagdollDisabledServer"] = true}
 
 function AntiDetectModule.Init()
-    print("[Airi Hub] Anti-Detect V2.7 (TOTAL AC KILLER) initializing...")
+    print("[Airi Hub] Anti-Detect V2.8 initializing...")
 
     -- ===========================================
     -- 1. TOTAL AC DISABLE (Membunuh AC dari akarnya)
@@ -67,55 +66,66 @@ function AntiDetectModule.Init()
     end)
 
     -- ===========================================
-    -- 3. UNIFIED __namecall HOOK (Untuk Instances)
+    -- 3. UNIFIED __namecall HOOK (CRASH PROTECTED)
     -- ===========================================
     local preHookOriginal = getgenv()._AiriPreHookOriginalNamecall
     local OldNamecall
+    local hookInstalled = false
     
-    OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-        local method = getnamecallmethod()
+    local hookSuccess, hookErr = pcall(function()
+        OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+            local method = getnamecallmethod()
 
-        if not checkcaller() then
-            local Config = getgenv().AiriConfig
+            if not checkcaller() then
+                local Config = getgenv().AiriConfig
 
-            -- Anti Kick & Destroy LocalPlayer
-            if method == "Kick" and self == LocalPlayer then return nil end
-            if method == "Destroy" and self == LocalPlayer then return nil end
+                -- Anti Kick & Destroy LocalPlayer
+                if method == "Kick" and self == LocalPlayer then return nil end
+                if method == "Destroy" and self == LocalPlayer then return nil end
 
-            -- HasTag Spoof (Untuk BodyMover)
-            if method == "HasTag" then
-                local arg1, arg2 = ...
-                if arg1 == BODY_MOVER_TAG or arg2 == BODY_MOVER_TAG then return true end
-            end
+                -- HasTag Spoof (Untuk BodyMover)
+                if method == "HasTag" then
+                    local arg1, arg2 = ...
+                    if arg1 == BODY_MOVER_TAG or arg2 == BODY_MOVER_TAG then return true end
+                end
 
-            -- GetAttribute Spoof
-            if method == "GetAttribute" and Config then
-                local attr = ...
-                if type(attr) == "string" then
-                    if Config.AntiRagdoll then
-                        if RAGDOLL_FALSE[attr] then return false end
-                        if RAGDOLL_TRUE[attr] then return true end
-                    end
-                    if Config.NoDodgeDelay then
-                        if attr == "DashCooldown" then return 0 end
-                        if attr == "IsDashing" then return false end
-                    end
-                    if attr == "Lifetime" and typeof(self) == "Instance" and self:IsA("BodyMover") then
-                        return 5
+                -- GetAttribute Spoof (with crash protection)
+                if method == "GetAttribute" and Config then
+                    local attr = ...
+                    if type(attr) == "string" then
+                        if Config.AntiRagdoll then
+                            if RAGDOLL_FALSE[attr] then return false end
+                            if RAGDOLL_TRUE[attr] then return true end
+                        end
+                        if Config.NoDodgeDelay then
+                            if attr == "DashCooldown" then return 0 end
+                            if attr == "IsDashing" then return false end
+                        end
+                        if attr == "Lifetime" then
+                            -- Safe check for BodyMover with pcall
+                            local isBodyMover = pcall(function() return typeof(self) == "Instance" and self:IsA("BodyMover") end)
+                            if isBodyMover then return 5 end
+                        end
                     end
                 end
             end
-        end
 
-        return OldNamecall(self, ...)
-    end))
+            return OldNamecall(self, ...)
+        end))
+    end)
+    
+    if hookSuccess then
+        hookInstalled = true
+        -- Restore referensi yang benar
+        if preHookOriginal then OldNamecall = preHookOriginal end
+        getgenv().OldNamecall = OldNamecall
+        getgenv()._AiriPreHookOriginalNamecall = nil
+        print("[Airi Hub] Anti-Detect __namecall hook installed.")
+    else
+        warn("[Airi Hub] __namecall hook failed: " .. tostring(hookErr))
+    end
 
-    -- Restore referensi yang benar
-    if preHookOriginal then OldNamecall = preHookOriginal end
-    getgenv().OldNamecall = OldNamecall
-    getgenv()._AiriPreHookOriginalNamecall = nil
-
-    print("[Airi Hub] Anti-Detect V2.7 FULLY ACTIVE.")
+    print("[Airi Hub] Anti-Detect V2.8 FULLY ACTIVE.")
 end
 
 function AntiDetectModule.Unload()

@@ -1,12 +1,12 @@
 --[[
-    Airi Hub - Combat Module V2.7 (PURE & FAST)
+    Airi Hub - Combat Module V2.8 (CRASH FIXED)
     Target: Combat Warriors
     Focus: Zero Geometry, Instant Reaction, Native Input
     
-    CHANGELOG V2.7:
-    - KEMBALI KE DASAR: Karena Anti-Cheat sekarang sudah MATI TOTAL di antidetect.lua,
-      kita tidak perlu lagi melakukan kalkulasi jarak, geometri, atau humanizer yang rumit.
-    - FOKUS: Kecepatan parry maksimal dengan micro-delay agar pas dengan frame animasi musuh.
+    CHANGELOG V2.8:
+    - FIX: PlayerCharacters wrapped with pcall (WaitForChild)
+    - FIX: All setupAnimationDetection calls wrapped with pcall
+    - FIX: getClosestToCursor uses safe getPlayerCharacters()
 ]]
 
 local Players = game:GetService("Players")
@@ -20,10 +20,25 @@ local Camera = Workspace.CurrentCamera
 local CombatModule = {}
 local Connections = {}
 
-local PlayerCharacters = Workspace:WaitForChild("PlayerCharacters")
+-- Safe WaitForChild for PlayerCharacters
+local PlayerCharacters = nil
+local function getPlayerCharacters()
+    if PlayerCharacters then return PlayerCharacters end
+    local success, result = pcall(function()
+        return Workspace:WaitForChild("PlayerCharacters", 10)
+    end)
+    if success then
+        PlayerCharacters = result
+    else
+        warn("[Airi Hub] PlayerCharacters not found: " .. tostring(result))
+    end
+    return PlayerCharacters
+end
 
 local function getLocalCharacter()
-    return PlayerCharacters:FindFirstChild(LocalPlayer.Name) or LocalPlayer.Character
+    local pc = getPlayerCharacters()
+    if not pc then return LocalPlayer.Character end
+    return pc:FindFirstChild(LocalPlayer.Name) or LocalPlayer.Character
 end
 
 -- ==========================================
@@ -112,8 +127,11 @@ local function getClosestToCursor(config)
     local closestChar = nil
     local shortestDist = config.AimbotFOV
     local mousePos = UserInputService:GetMouseLocation()
+    
+    local pc = getPlayerCharacters()
+    if not pc then return nil end
 
-    for _, char in ipairs(PlayerCharacters:GetChildren()) do
+    for _, char in ipairs(pc:GetChildren()) do
         if char.Name ~= LocalPlayer.Name and char:FindFirstChild("HumanoidRootPart") then
             local humanoid = char:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 then
@@ -136,25 +154,36 @@ end
 -- MAIN INITIALIZATION
 -- ==========================================
 function CombatModule.Init()
-    print("[Airi Hub] Combat V2.7 initializing...")
-
-    for _, char in ipairs(PlayerCharacters:GetChildren()) do
-        setupAnimationDetection(char)
+    print("[Airi Hub] Combat V2.8 initializing...")
+    
+    local pc = getPlayerCharacters()
+    if not pc then
+        warn("[Airi Hub] Combat: PlayerCharacters not available")
+        return
     end
 
-    local addedConn = PlayerCharacters.ChildAdded:Connect(setupAnimationDetection)
+    for _, char in ipairs(pc:GetChildren()) do
+        pcall(setupAnimationDetection, char)
+    end
+
+    local addedConn = pc.ChildAdded:Connect(function(char)
+        pcall(setupAnimationDetection, char)
+    end)
     table.insert(Connections, addedConn)
 
     local descConn = PlayerCharacters.DescendantAdded:Connect(function(descendant)
         local Config = getgenv().AiriConfig
         if not Config.AutoParry or not Config.UseSound then return end
         
+        local pc = getPlayerCharacters()
+        if not pc then return end
+        
         if descendant:IsA("Sound") then
             local name = descendant.Name
             if name == "1" or name == "2" or name == "3" or name == "4" then
                 if descendant.Parent and descendant.Parent.Name == "Hitbox" then
                     local enemyChar = descendant:FindFirstAncestorOfClass("Model")
-                    if enemyChar and enemyChar.Parent == PlayerCharacters and enemyChar.Name ~= LocalPlayer.Name then
+                    if enemyChar and enemyChar.Parent == pc and enemyChar.Name ~= LocalPlayer.Name then
                         triggerParry(enemyChar)
                     end
                 end
@@ -178,7 +207,7 @@ function CombatModule.Init()
     end)
     table.insert(Connections, renderConn)
     
-    print("[Airi Hub] Combat V2.7 ACTIVE.")
+    print("[Airi Hub] Combat V2.8 ACTIVE.")
 end
 
 function CombatModule:Unload()

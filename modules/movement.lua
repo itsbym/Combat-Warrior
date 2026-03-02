@@ -1,20 +1,14 @@
 --[[
-    Airi Hub - Movement Module V2.1 (Cleaned)
+    Airi Hub - Movement Module V2.2 (CRASH FIXED)
     Target: Combat Warriors
     Focus: Inf Stamina (GC Hook), No Jump Delay (State Override)
     
-    CHANGELOG V2.1:
-    - DIHAPUS: hookmetamethod __namecall (PENYEBAB KONFLIK dengan antidetect.lua)
-    - DIHAPUS: Fall Damage hook (sudah di-handle oleh antidetect.lua via __namecall)
-    - DIHAPUS: Anti-Ragdoll hook (sudah di-handle oleh antidetect.lua via __namecall)
-    - DIHAPUS: No Dodge Delay dari Heartbeat (sudah di-handle oleh antidetect.lua via GetAttribute spoof)
-    - TETAP: Infinite Stamina GC hook (one-time scan, bukan loop getgc)
-    - TETAP: No Jump Delay (JumpRequest event)
-    - TETAP: Heartbeat stamina enforcement (rawset property manipulation)
-    
-    ATURAN ARSITEKTUR:
-    Module ini TIDAK BOLEH hookmetamethod. Semua metamethod hooks
-    dipusatkan di antidetect.lua untuk menghindari konflik.
+    CHANGELOG V2.2:
+    - FIX: JumpRequest wrapped with pcall
+    - FIX: GetState() wrapped with pcall
+    - FIX: All rawset/rawget operations wrapped with pcall
+    - FIX: newcclosure wrapped with pcall
+    - FIX: Unload function wrapped with pcall
 ]]
 
 local Players = game:GetService("Players")
@@ -32,27 +26,44 @@ local Connections = {}
 -- MAIN INITIALIZATION
 -- ==========================================
 function MovementModule.Init()
-    print("[Airi Hub] Movement V2.1 initializing...")
+    print("[Airi Hub] Movement V2.2 initializing...")
 
     -- NOTE: Fall Damage, Anti-Ragdoll, dan No Dodge Delay
     -- sekarang di-handle oleh antidetect.lua via unified __namecall hook.
     -- Module ini hanya handle stamina dan jump delay.
 
-    -- 1. NO JUMP DELAY (State Override via UserInput)
-    local jumpRequestConn = UserInputService.JumpRequest:Connect(function()
-        if getgenv().AiriConfig.NoJumpDelay then
-            local char = LocalPlayer.Character
-            if char then
-                local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Dead then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    -- 1. NO JUMP DELAY (State Override via UserInput) - with pcall
+    local jumpRequestConn
+    local jrSuccess, jrErr = pcall(function()
+        jumpRequestConn = UserInputService.JumpRequest:Connect(function()
+            if getgenv().AiriConfig.NoJumpDelay then
+                local char = LocalPlayer.Character
+                if char then
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        -- Safe GetState check
+                        local currState
+                        local stateSuccess, stateErr = pcall(function()
+                            currState = humanoid:GetState()
+                        end)
+                        if stateSuccess and currState and currState ~= Enum.HumanoidStateType.Dead then
+                            pcall(function()
+                                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                            end)
+                        end
+                    end
                 end
             end
-        end
+        end)
     end)
-    table.insert(Connections, jumpRequestConn)
+    
+    if jrSuccess and jumpRequestConn then
+        table.insert(Connections, jumpRequestConn)
+    else
+        warn("[Airi Hub] JumpRequest connect failed: " .. tostring(jrErr))
+    end
 
-    -- 2. INFINITE STAMINA (One-Time GC Scan + Hook)
+    -- 2. INFINITE STAMINA (One-Time GC Scan + Hook) - Full pcall protection
     task.spawn(function()
         if not getgc then
             warn("[Airi Hub] getgc not available - Stamina hook skipped")
@@ -61,29 +72,36 @@ function MovementModule.Init()
 
         local success, err = pcall(function()
             local gc = getgc(true)
+            if not gc then return end
             for i = 1, #gc do
                 local obj = gc[i]
-                if type(obj) == "table"
-                    and rawget(obj, "enableDrain")
-                    and type(rawget(obj, "enableDrain")) == "function"
-                then
-                    local originalDrain = rawget(obj, "enableDrain")
+                if type(obj) == "table" then
+                    -- Safe check for enableDrain
+                    local enableDrainFunc = rawget(obj, "enableDrain")
+                    if enableDrainFunc and type(enableDrainFunc) == "function" then
+                        local originalDrain = enableDrainFunc
 
-                    -- Cache original values untuk restore saat Unload/toggle off
-                    GCHooks[#GCHooks + 1] = {
-                        object   = obj,
-                        oldDrain = originalDrain,
-                        oldGain  = rawget(obj, "gainPerSecond"),
-                        oldDelay = rawget(obj, "gainDelay"),
-                    }
+                        -- Cache original values untuk restore saat Unload/toggle off
+                        local oldGain = rawget(obj, "gainPerSecond")
+                        local oldDelay = rawget(obj, "gainDelay")
 
-                    -- Hook: Timpa drain agar stamina tidak berkurang
-                    obj.enableDrain = newcclosure(function(self, ...)
-                        if getgenv().AiriConfig.InfStamina then
-                            return -- Bypass drain
-                        end
-                        return originalDrain(self, ...)
-                    end)
+                        GCHooks[#GCHooks + 1] = {
+                            object   = obj,
+                            oldDrain = originalDrain,
+                            oldGain  = oldGain,
+                            oldDelay = oldDelay,
+                        }
+
+                        -- Hook: Timpa drain agar stamina tidak berkurang (with pcall)
+                        pcall(function()
+                            obj.enableDrain = newcclosure(function(self, ...)
+                                if getgenv().AiriConfig.InfStamina then
+                                    return -- Bypass drain
+                                end
+                                return originalDrain(self, ...)
+                            end)
+                        end)
+                    end
                 end
             end
         end)
@@ -95,41 +113,57 @@ function MovementModule.Init()
         end
     end)
 
-    -- 3. STAMINA ENFORCEMENT (Heartbeat - rawset property manipulation)
-    --    Hanya handle stamina values. Dodge delay sudah di antidetect.
-    local heartbeatConn = RunService.Heartbeat:Connect(function()
-        local Config = getgenv().AiriConfig
-        if not Config then return end
+    -- 3. STAMINA ENFORCEMENT (Heartbeat - rawset with pcall protection)
+    local heartbeatConn
+    local hbSuccess, hbErr = pcall(function()
+        heartbeatConn = RunService.Heartbeat:Connect(function()
+            local Config = getgenv().AiriConfig
+            if not Config then return end
 
-        -- Enforce stamina values via rawset (langsung ke memory)
-        if Config.InfStamina then
-            for i = 1, #GCHooks do
-                local obj = GCHooks[i].object
-                if obj then
-                    rawset(obj, "gainPerSecond", 9999)
-                    rawset(obj, "gainDelay", 0)
+            -- Enforce stamina values via rawset (langsung ke memory)
+            if Config.InfStamina then
+                for i = 1, #GCHooks do
+                    local obj = GCHooks[i].object
+                    if obj then
+                        pcall(function()
+                            rawset(obj, "gainPerSecond", 9999)
+                            rawset(obj, "gainDelay", 0)
+                        end)
 
-                    local maxStam = rawget(obj, "_maxStamina")
-                    if maxStam then
-                        rawset(obj, "_stamina", maxStam)
+                        pcall(function()
+                            local maxStam = rawget(obj, "_maxStamina")
+                            if maxStam then
+                                rawset(obj, "_stamina", maxStam)
+                            end
+                        end)
+                    end
+                end
+            else
+                -- Restore values jika InfStamina dimatikan
+                for i = 1, #GCHooks do
+                    local hookData = GCHooks[i]
+                    local obj = hookData.object
+                    if obj then
+                        pcall(function()
+                            local currGain = rawget(obj, "gainPerSecond")
+                            if currGain == 9999 then
+                                rawset(obj, "gainPerSecond", hookData.oldGain)
+                                rawset(obj, "gainDelay", hookData.oldDelay)
+                            end
+                        end)
                     end
                 end
             end
-        else
-            -- Restore values jika InfStamina dimatikan
-            for i = 1, #GCHooks do
-                local hookData = GCHooks[i]
-                local obj = hookData.object
-                if obj and rawget(obj, "gainPerSecond") == 9999 then
-                    rawset(obj, "gainPerSecond", hookData.oldGain)
-                    rawset(obj, "gainDelay", hookData.oldDelay)
-                end
-            end
-        end
+        end)
     end)
-    table.insert(Connections, heartbeatConn)
+    
+    if hbSuccess and heartbeatConn then
+        table.insert(Connections, heartbeatConn)
+    else
+        warn("[Airi Hub] Heartbeat connect failed: " .. tostring(hbErr))
+    end
 
-    print("[Airi Hub] Movement V2.1 ACTIVE.")
+    print("[Airi Hub] Movement V2.2 ACTIVE.")
 end
 
 -- ==========================================
@@ -142,8 +176,10 @@ function MovementModule.Unload()
     -- 1. Disconnect Events
     for i = 1, #Connections do
         local conn = Connections[i]
-        if conn and conn.Connected then
-            conn:Disconnect()
+        if conn then
+            pcall(function()
+                if conn.Connected then conn:Disconnect() end
+            end)
         end
     end
     table.clear(Connections)
@@ -153,14 +189,16 @@ function MovementModule.Unload()
         local hookData = GCHooks[i]
         local obj = hookData.object
         if obj then
-            rawset(obj, "enableDrain", hookData.oldDrain)
-            rawset(obj, "gainPerSecond", hookData.oldGain)
-            rawset(obj, "gainDelay", hookData.oldDelay)
+            pcall(function()
+                rawset(obj, "enableDrain", hookData.oldDrain)
+                rawset(obj, "gainPerSecond", hookData.oldGain)
+                rawset(obj, "gainDelay", hookData.oldDelay)
+            end)
         end
     end
     table.clear(GCHooks)
 
-    print("[Airi Hub] Movement V2.1 Unloaded.")
+    print("[Airi Hub] Movement V2.2 Unloaded.")
 end
 
 return MovementModule
