@@ -40,8 +40,9 @@ function AntiDetect.Init()
     -- ===========================================
     -- 2. NULLIFY ANTICHEAT LOGIC (Silent)
     -- ===========================================
-    -- NOTE: We DON'T hook .punish or .getIsAcDisabled to avoid the anti-tamper heartbeat.
-    -- We instead block the EFFECTS of those functions via metamethods.
+    -- NOTE: Kita TIDAK me-hook .punish atau .getIsAcDisabled secara langsung
+    -- untuk menghindari deteksi heartbeat anti-tamper.
+    -- Sebagai gantinya, kita memblokir EFEK dari fungsi tersebut via metamethods.
 
     -- ===========================================
     -- 3. NETWORK TELEMETRY SILENCER
@@ -51,7 +52,7 @@ function AntiDetect.Init()
         pcall(function()
             oldFireServer = hookfunction(Network.FireServer, function(self, remoteName, ...)
                 if type(remoteName) == "string" then
-                    -- Block telemetry logging
+                    -- Blokir pelaporan telemetry (LogKick / LogACTrigger)
                     if remoteName == "LogKick" or remoteName == "LogACTrigger" then
                         return nil
                     end
@@ -68,7 +69,7 @@ function AntiDetect.Init()
     end
     
     -- ===========================================
-    -- 4. UNIFIED METAMETHOD PROTECTION
+    -- 4. UNIFIED METAMETHOD PROTECTION (Invisible Shield)
     -- ===========================================
     if not getgenv()._AiriMetamethodHookDone then
         local OldNamecall
@@ -79,25 +80,25 @@ function AntiDetect.Init()
                 local args = {...}
 
                 if not checkcaller() then
-                    -- Aggressive Kick/Destroy Protection (V3 Logic)
+                    -- Agresif Kick/Destroy Protection (V3 Logic)
                     local k_ok, k_res = pcall(function() return method == "Kick" and self == LocalPlayer end)
                     if k_ok and k_res then return nil end
                     
                     local d_ok, d_res = pcall(function() return (method == "Destroy" or method == "destroy") and self == LocalPlayer end)
                     if d_ok and d_res then return nil end
 
-                    -- Block direct logging
+                    -- Blokir direct logging via FireServer remote
                     if method == "FireServer" then
                         local remoteName = args[1]
                         if remoteName == "LogKick" or remoteName == "LogACTrigger" then return nil end
                     end
 
-                    -- BodyMover Integrity (HasTag Spoof)
+                    -- BodyMover Integrity (HasTag Spoof) agar cheat pergerakan tidak deteksi
                     if method == "HasTag" then
                         if args[1] == BODY_MOVER_TAG or args[2] == BODY_MOVER_TAG then return true end
                     end
                     
-                    -- Attribute Spoof (Lifetime check)
+                    -- Attribute Spoof (Lifetime check) untuk BodyMovers
                     if method == "GetAttribute" then
                         local attr = args[1]
                         local Config = getgenv().AiriConfig
@@ -131,7 +132,7 @@ function AntiDetect.Init()
 end
 
 function AntiDetect.Unload()
-    -- V3 Persistence: For safety, we do not unload metamethod hooks.
+    -- V3 Persistence: Untuk keamanan, kita tidak melepas hook metamethod.
 end
 
 return AntiDetect
