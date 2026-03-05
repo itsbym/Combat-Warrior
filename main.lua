@@ -178,10 +178,10 @@ if not Window then
 end
 
 local Tabs = {}
-Tabs.Combat   = Window:CreateTab({ Name = "Combat",   Icon = "swords", ImageSource = "Lucide", ShowTitle = true })
-Tabs.Visuals  = Window:CreateTab({ Name = "Visuals",  Icon = "eye", ImageSource = "Lucide", ShowTitle = true })
-Tabs.Aimbot   = Window:CreateTab({ Name = "Aimbot",   Icon = "crosshair", ImageSource = "Lucide", ShowTitle = true })
-Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "settings", ImageSource = "Lucide", ShowTitle = true })
+Tabs.Combat   = Window:CreateTab({ Name = "Combat", ShowTitle = true })
+Tabs.Visuals  = Window:CreateTab({ Name = "Visuals", ShowTitle = true })
+Tabs.Aimbot   = Window:CreateTab({ Name = "Aimbot", ShowTitle = true })
+Tabs.Settings = Window:CreateTab({ Name = "Settings", ShowTitle = true })
 
 
 
