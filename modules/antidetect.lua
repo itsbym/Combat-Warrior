@@ -108,9 +108,7 @@ function AntiDetect.Init()
                             end
                         end
                         -- Spoof Lifetime attribute for BodyMovers
-                        -- JANGAN panggil fungsi dari instance di sini (seperti :IsA) 
-                        -- memicu namecall baru = STACK OVERFLOW / CRASH TO DESKTOP
-                        if attr == "Lifetime" then
+                        if attr == "Lifetime" and self:IsA("BodyMover") then
                             return 5
                         end
                     end
