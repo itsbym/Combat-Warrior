@@ -33,33 +33,21 @@ function AntiDetect.Init()
     end)
     if networkSuccess then Network = networkResult end
     
-    -- JANGAN hook AntiCheatHandler! Developer gamenya nambahin jebakan (Honeypot) di AntiCheatHandlerClient
-    -- yang bakal nge-crash-in executor pakai 'while true do Instance.new("Part")' kalau AntiCheatHandler.punish berubah!
-    -- Sebagai gantinya, kita hook wrapper-nya (AntiCheatHandlerClient) yang BEBAS dari pengecekan honeypot!
-    local acClientSuccess, acClientResult = pcall(function()
-        return require(ReplicatedStorage.Client.Source.AntiCheat.AntiCheatHandlerClient)
+    -- ===========================================
+    -- THE ULTIMATE BYPASS (Credits to Reference Script)
+    -- "one line bypass, if you hook punish ur gay!"
+    -- Overwriting Flag.getIsMaxed ensures no local punishments are EVER executed, avoiding all honeypots!
+    local flagSuccess, flagResult = pcall(function()
+        return require(ReplicatedStorage.Shared.Vendor.Flag)
     end)
     
-    if acClientSuccess and type(acClientResult) == "table" then 
-        local AntiCheatHandlerClient = acClientResult 
-        
-        -- THE ULTIMATE FIX FOR CTD: Hook the Client wrapper instead of the Core handler (which has the honeypot)
-        if type(AntiCheatHandlerClient.punish) == "function" and not getgenv()._AiriPunishHookDone then
-            hookfunction(AntiCheatHandlerClient.punish, function(...)
-                -- Do absolutely nothing. Block the punishment entirely.
-                return nil
-            end)
-            getgenv()._AiriPunishHookDone = true
+    if flagSuccess and type(flagResult) == "table" then
+        if not getgenv()._AiriFlagHookDone then
+            -- Replace getIsMaxed so it always returns false/nil
+            -- This means no matter how many flags the AC gives us, we are never "maxed" or punished!
+            flagResult.getIsMaxed = function() return false end
+            getgenv()._AiriFlagHookDone = true
         end
-    end
-    
-    -- BACKDOOR AC DISABLED HOOK
-    if AntiCheatHandler and type(AntiCheatHandler.getIsAcDisabled) == "function" and not getgenv()._AiriBackdoorHookDone then
-        hookfunction(AntiCheatHandler.getIsAcDisabled, function()
-            -- Force AC to think it's disabled globally for this player
-            return true
-        end)
-        getgenv()._AiriBackdoorHookDone = true
     end
     
     -- ===========================================
