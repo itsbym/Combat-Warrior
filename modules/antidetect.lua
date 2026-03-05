@@ -36,7 +36,18 @@ function AntiDetect.Init()
     local acSuccess, acResult = pcall(function()
         return require(ReplicatedStorage.Shared.Source.AntiCheat.AntiCheatHandler)
     end)
-    if acSuccess then AntiCheatHandler = acResult end
+    if acSuccess and type(acResult) == "table" then 
+        AntiCheatHandler = acResult 
+        
+        -- THE ULTIMATE FIX FOR CTD: Hook the punish function to prevent the deliberate while true do crash loop
+        if type(AntiCheatHandler.punish) == "function" and not getgenv()._AiriPunishHookDone then
+            hookfunction(AntiCheatHandler.punish, function(...)
+                -- Do absolutely nothing. Block the punishment entirely.
+                return nil
+            end)
+            getgenv()._AiriPunishHookDone = true
+        end
+    end
     
     -- ===========================================
     -- 2. SILENCED BYPASS LOGIC
