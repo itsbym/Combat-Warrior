@@ -183,7 +183,7 @@ Tabs.Visuals  = Window:CreateTab({ Name = "Visuals",  Icon = "eye", ImageSource 
 Tabs.Aimbot   = Window:CreateTab({ Name = "Aimbot",   Icon = "crosshair", ImageSource = "Lucide", ShowTitle = true })
 Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "settings", ImageSource = "Lucide", ShowTitle = true })
 
-Window:CreateHomeTab()
+
 
 -- ================================================================
 -- PHASE 3: LOAD MODULE LAIN - ASYNC (background)
