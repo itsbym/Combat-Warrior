@@ -108,24 +108,15 @@ function AntiDetect.Init()
                             end
                         end
                         -- Spoof Lifetime attribute for BodyMovers
-                        -- MENGGUNAKAN PCALL DAN TIDAK LANGSUNG MENGGANGGU REGISTER
+                        -- JANGAN panggil fungsi dari instance di sini (seperti :IsA) 
+                        -- memicu namecall baru = STACK OVERFLOW / CRASH TO DESKTOP
                         if attr == "Lifetime" then
-                            local isBodyMover = false
-                            pcall(function() isBodyMover = self:IsA("BodyMover") end)
-                            if isBodyMover then
-                                return 5
-                            end
+                            return 5
                         end
                     end
                 end
             end
             
-            -- SANGAT PENTING: Kembalikan nama method aslinya sebelum dilempar balik!
-            -- Hal ini mencegah pemanggilan fungsi di dalam hook (seperti :IsA()) menimpa register method aslinya.
-            if setnamecallmethod then
-                setnamecallmethod(method)
-            end
-
             if OldNamecall then
                 return OldNamecall(self, ...)
             end
