@@ -178,10 +178,10 @@ if not Window then
 end
 
 local Tabs = {}
-Tabs.Combat   = Window:CreateTab({ Name = "Combat", Icon = "rbxassetid://4483362458", ShowTitle = true })
-Tabs.Visuals  = Window:CreateTab({ Name = "Visuals", Icon = "rbxassetid://4483362458", ShowTitle = true })
-Tabs.Aimbot   = Window:CreateTab({ Name = "Aimbot", Icon = "rbxassetid://4483362458", ShowTitle = true })
-Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "rbxassetid://4483362458", ShowTitle = true })
+Tabs.Combat   = Window:CreateTab({ Name = "Combat", Icon = "shield", ShowTitle = true })
+Tabs.Visuals  = Window:CreateTab({ Name = "Visuals", Icon = "inventory", ShowTitle = true })
+Tabs.Aimbot   = Window:CreateTab({ Name = "Aimbot", Icon = "sort", ShowTitle = true })
+Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "archive", ShowTitle = true })
 
 
 
