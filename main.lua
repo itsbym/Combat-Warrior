@@ -178,10 +178,10 @@ if not Window then
 end
 
 local Tabs = {}
-Tabs.Combat   = Window:CreateTab({ Name = "Combat", ShowTitle = true })
-Tabs.Visuals  = Window:CreateTab({ Name = "Visuals", ShowTitle = true })
-Tabs.Aimbot   = Window:CreateTab({ Name = "Aimbot", ShowTitle = true })
-Tabs.Settings = Window:CreateTab({ Name = "Settings", ShowTitle = true })
+Tabs.Combat   = Window:CreateTab({ Name = "Combat", Icon = "rbxassetid://4483362458", ShowTitle = true })
+Tabs.Visuals  = Window:CreateTab({ Name = "Visuals", Icon = "rbxassetid://4483362458", ShowTitle = true })
+Tabs.Aimbot   = Window:CreateTab({ Name = "Aimbot", Icon = "rbxassetid://4483362458", ShowTitle = true })
+Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "rbxassetid://4483362458", ShowTitle = true })
 
 
 
@@ -218,14 +218,14 @@ Tabs.Combat:CreateInput({ Name = "Whitelist Player", PlaceholderText = "Username
 Tabs.Combat:CreateInput({ Name = "Blacklist Player", PlaceholderText = "Username...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.AutoParryBlacklistPlayer = t end })
 Tabs.Combat:CreateInput({ Name = "Whitelist Team", PlaceholderText = "Team Name...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.AutoParryWhitelistTeam = t end })
 Tabs.Combat:CreateInput({ Name = "Blacklist Team", PlaceholderText = "Team Name...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.AutoParryBlacklistTeam = t end })
-Tabs.Combat:CreateDropdown({ Name = "Parry Mode", Options = {"Hold", "Toggle", "Trigger"}, CurrentValue = Config.AutoParryMode, Flag = "AutoParryMode", Callback = function(o) Config.AutoParryMode = o end })
-Tabs.Combat:CreateDropdown({ Name = "Detection Method", Options = {"Animation", "Sound", "Both"}, CurrentValue = Config.AutoParryDetection, Flag = "AutoParryDetect", Callback = function(o) Config.AutoParryDetection = o end })
+Tabs.Combat:CreateDropdown({ Name = "Parry Mode", Options = {"Hold", "Toggle", "Trigger"}, Flag = "AutoParryMode", Callback = function(o) Config.AutoParryMode = type(o)=="table" and o[1] or o end })
+Tabs.Combat:CreateDropdown({ Name = "Detection Method", Options = {"Animation", "Sound", "Both"}, Flag = "AutoParryDetect", Callback = function(o) Config.AutoParryDetection = type(o)=="table" and o[1] or o end })
 Tabs.Combat:CreateSlider({ Name = "Parry Chance (%)", Range = {1, 100}, Increment = 1, CurrentValue = Config.AutoParryChance, Flag = "AutoParryChance", Callback = function(v) Config.AutoParryChance = v end })
 Tabs.Combat:CreateToggle({ Name = "Auto Equip Weapon", CurrentValue = Config.AutoEquip, Flag = "AutoEquipTog", Callback = function(s) Config.AutoEquip = s end })
 Tabs.Combat:CreateSlider({ Name = "Auto Equip Delay", Range = {0, 2}, Increment = 0.1, CurrentValue = Config.AutoEquipDelay, Flag = "AutoEquipDelay", Callback = function(v) Config.AutoEquipDelay = v end })
 
 Tabs.Combat:CreateSection("Anti Parry")
-Tabs.Combat:CreateDropdown({ Name = "Anti Parry Mode", Options = {"Hold", "Toggle"}, CurrentValue = Config.AntiParryMode, Flag = "AntiParryMode", Callback = function(o) Config.AntiParryMode = o end })
+Tabs.Combat:CreateDropdown({ Name = "Anti Parry Mode", Options = {"Hold", "Toggle"}, Flag = "AntiParryMode", Callback = function(o) Config.AntiParryMode = type(o)=="table" and o[1] or o end })
 Tabs.Combat:CreateKeybind({ Name = "Anti Parry Keybind", CurrentKeybind = Config.AntiParryToggleKeybind, HoldToInteract = false, Flag = "AntiParryBind", Callback = function(k) Config.AntiParryToggleKeybind = k.Name end })
 
 Tabs.Combat:CreateSection("No Delay & Movement")
@@ -237,9 +237,9 @@ Tabs.Combat:CreateSection("Hitbox Expander")
 Tabs.Combat:CreateToggle({ Name = "Enable Hitbox Expander", CurrentValue = Config.HitboxExpander, Flag = "HitboxTog", Callback = function(s) Config.HitboxExpander = s end })
 Tabs.Combat:CreateKeybind({ Name = "Hitbox Keybind", CurrentKeybind = Config.HitboxExpanderKeybind, HoldToInteract = false, Flag = "HitboxBind", Callback = function(k) Config.HitboxExpanderKeybind = k.Name end })
 Tabs.Combat:CreateSlider({ Name = "Hitbox Size", Range = {0.1, 50}, Increment = 0.5, CurrentValue = Config.HitboxExpanderSize, Flag = "HitboxSizeBtn", Callback = function(v) Config.HitboxExpanderSize = v end })
-Tabs.Combat:CreateDropdown({ Name = "Target Part", Options = {"Head", "Torso", "HumanoidRootPart", "Arms", "Legs"}, CurrentValue = Config.HitboxTarget, Flag = "HitboxTargetOpt", Callback = function(o) Config.HitboxTarget = o end })
+Tabs.Combat:CreateDropdown({ Name = "Target Part", Options = {"Head", "Torso", "HumanoidRootPart", "Arms", "Legs"}, Flag = "HitboxTargetOpt", Callback = function(o) Config.HitboxTarget = type(o)=="table" and o[1] or o end })
 Tabs.Combat:CreateSlider({ Name = "Opacity", Range = {0, 1}, Increment = 0.1, CurrentValue = Config.HitboxOpacity, Flag = "HitboxOpac", Callback = function(v) Config.HitboxOpacity = v end })
-Tabs.Combat:CreateDropdown({ Name = "Color Mode", Options = {"Static", "Rainbow"}, CurrentValue = Config.HitboxColorMode, Flag = "HitboxColMode", Callback = function(o) Config.HitboxColorMode = o end })
+Tabs.Combat:CreateDropdown({ Name = "Color Mode", Options = {"Static", "Rainbow"}, Flag = "HitboxColMode", Callback = function(o) Config.HitboxColorMode = type(o)=="table" and o[1] or o end })
 Tabs.Combat:CreateColorPicker({ Name = "Static Color", Color = Config.HitboxStaticColor, Flag = "HitboxColorPick", Callback = function(c) Config.HitboxStaticColor = c end })
 Tabs.Combat:CreateSlider({ Name = "Rainbow Speed", Range = {1, 10}, Increment = 1, CurrentValue = Config.HitboxRainbowSpeed, Flag = "HitboxRBSpeed", Callback = function(v) Config.HitboxRainbowSpeed = v end })
 
@@ -247,11 +247,11 @@ Tabs.Combat:CreateSlider({ Name = "Rainbow Speed", Range = {1, 10}, Increment = 
 -- UI POPULATION (AIMBOT TAB)
 -----------------------------------------
 Tabs.Aimbot:CreateSection("Aimbot Settings")
-Tabs.Aimbot:CreateDropdown({ Name = "Aimbot Mode", Options = {"Hold", "Toggle", "Trigger"}, CurrentValue = Config.AimbotMode, Flag = "AimMode", Callback = function(o) Config.AimbotMode = o end })
+Tabs.Aimbot:CreateDropdown({ Name = "Aimbot Mode", Options = {"Hold", "Toggle", "Trigger"}, Flag = "AimMode", Callback = function(o) Config.AimbotMode = type(o)=="table" and o[1] or o end })
 Tabs.Aimbot:CreateKeybind({ Name = "Toggle Keybind", CurrentKeybind = Config.AimbotToggleKeybind, HoldToInteract = false, Flag = "AimTogBind", Callback = function(k) Config.AimbotToggleKeybind = k.Name end })
 Tabs.Aimbot:CreateKeybind({ Name = "Hold Keybind", CurrentKeybind = Config.AimbotHoldKeybind, HoldToInteract = false, Flag = "AimHoldBind", Callback = function(k) Config.AimbotHoldKeybind = k.Name end })
 Tabs.Aimbot:CreateKeybind({ Name = "Trigger Keybind", CurrentKeybind = Config.AimbotTriggerKeybind, HoldToInteract = false, Flag = "AimTrigBind", Callback = function(k) Config.AimbotTriggerKeybind = k.Name end })
-Tabs.Aimbot:CreateDropdown({ Name = "Aim Method", Options = {"Camera", "Mouse"}, CurrentValue = Config.AimbotMethod, Flag = "AimMethod", Callback = function(o) Config.AimbotMethod = o end })
+Tabs.Aimbot:CreateDropdown({ Name = "Aim Method", Options = {"Camera", "Mouse"}, Flag = "AimMethod", Callback = function(o) Config.AimbotMethod = type(o)=="table" and o[1] or o end })
 Tabs.Aimbot:CreateSlider({ Name = "Smoothness", Range = {0, 1}, Increment = 0.1, CurrentValue = Config.AimbotSmooth, Flag = "AimSmooth", Callback = function(v) Config.AimbotSmooth = v end })
 Tabs.Aimbot:CreateSlider({ Name = "FOV Size", Range = {0, 500}, Increment = 10, CurrentValue = Config.AimbotFOV, Flag = "AimFOV", Callback = function(v) Config.AimbotFOV = v end })
 Tabs.Aimbot:CreateToggle({ Name = "Teamcheck", CurrentValue = Config.AimbotTeamCheck, Flag = "AimTeam", Callback = function(s) Config.AimbotTeamCheck = s end })
@@ -263,11 +263,11 @@ Tabs.Aimbot:CreateInput({ Name = "Blacklist Team", PlaceholderText = "Team Name.
 -----------------------------------------
 Tabs.Visuals:CreateSection("ESP Options")
 Tabs.Visuals:CreateToggle({ Name = "Enable ESP", CurrentValue = Config.ESPEnabled, Flag = "ESPToggle", Callback = function(s) Config.ESPEnabled = s; if VisualsModule and VisualsModule.ToggleESP then pcall(VisualsModule.ToggleESP, s) end end })
-Tabs.Visuals:CreateDropdown({ Name = "ESP Mode", Options = {"Hold", "Toggle"}, CurrentValue = Config.ESPMode, Flag = "ESPMode", Callback = function(o) Config.ESPMode = o end })
+Tabs.Visuals:CreateDropdown({ Name = "ESP Mode", Options = {"Hold", "Toggle"}, Flag = "ESPMode", Callback = function(o) Config.ESPMode = type(o)=="table" and o[1] or o end })
 Tabs.Visuals:CreateKeybind({ Name = "Toggle Keybind", CurrentKeybind = Config.ESPToggleKeybind, HoldToInteract = false, Flag = "ESPTogBind", Callback = function(k) Config.ESPToggleKeybind = k.Name end })
 Tabs.Visuals:CreateKeybind({ Name = "Hold Keybind", CurrentKeybind = Config.ESPHoldKeybind, HoldToInteract = false, Flag = "ESPHoldBind", Callback = function(k) Config.ESPHoldKeybind = k.Name end })
 Tabs.Visuals:CreateSlider({ Name = "ESP Opacity", Range = {0, 1}, Increment = 0.1, CurrentValue = Config.ESPOpacity, Flag = "ESPOpac", Callback = function(v) Config.ESPOpacity = v end })
-Tabs.Visuals:CreateDropdown({ Name = "Color Mode", Options = {"Static", "Rainbow"}, CurrentValue = Config.ESPColorMode, Flag = "ESPColMode", Callback = function(o) Config.ESPColorMode = o end })
+Tabs.Visuals:CreateDropdown({ Name = "Color Mode", Options = {"Static", "Rainbow"}, Flag = "ESPColMode", Callback = function(o) Config.ESPColorMode = type(o)=="table" and o[1] or o end })
 Tabs.Visuals:CreateColorPicker({ Name = "Static Color", Color = Config.ESPStaticColor, Flag = "ESPColPick", Callback = function(c) Config.ESPStaticColor = c end })
 Tabs.Visuals:CreateSlider({ Name = "Rainbow Speed", Range = {1, 10}, Increment = 1, CurrentValue = Config.ESPRainbowSpeed, Flag = "ESPRBSpeed", Callback = function(v) Config.ESPRainbowSpeed = v end })
 Tabs.Visuals:CreateToggle({ Name = "Teamcheck", CurrentValue = Config.ESPTeamCheck, Flag = "ESPTchk", Callback = function(s) Config.ESPTeamCheck = s end })
