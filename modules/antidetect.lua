@@ -108,7 +108,9 @@ function AntiDetect.Init()
                             end
                         end
                         -- Spoof Lifetime attribute for BodyMovers
-                        if attr == "Lifetime" and self:IsA("BodyMover") then
+                        -- Murni cek string atribut. Jangan pernah panggil :IsA() atau fungsi obyek 
+                        -- dari dalam hook __namecall karena akan bikin Register Corruption atau CTD!
+                        if attr == "Lifetime" then
                             return 5
                         end
                     end
