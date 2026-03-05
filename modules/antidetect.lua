@@ -51,100 +51,39 @@ function AntiDetect.Init()
     end
     
     -- ===========================================
-    -- 2. SILENCED BYPASS LOGIC
+    -- 2. SILENCED BYPASS LOGIC (Network Level)
     -- ===========================================
+    -- We do NOT use hookmetamethod("__namecall") because it runs thousands of times per frame 
+    -- and completely freezes the client (CPU 100% deadlock with pcalls).
+    -- Instead, we simply hook the game's internal Network module directly!
     if Network and type(Network.FireServer) == "function" and not getgenv()._AiriNetworkHookDone then
-        local oldFireServer
-        oldFireServer = hookfunction(Network.FireServer, function(self, remoteName, ...)
-            if typeof(self) == "table" and type(remoteName) == "string" then
-                -- Blokir pelaporan telemetry (LogKick / LogACTrigger)
+        local originalFireServer = Network.FireServer
+        
+        Network.FireServer = function(self, remoteName, ...)
+            if type(remoteName) == "string" then
+                -- Block ALL anti-cheat telemetry and kick requests natively!
                 if remoteName == "LogKick" or remoteName == "LogACTrigger" then
-                    print("[Airi Hub] Blocked Network:FireServer -> " .. remoteName)
                     return nil
                 end
                 
+                -- Block manual exploit damage reporting
+                if remoteName:match("Exploit") or remoteName:match("Cheat") then
+                    return nil
+                end
+
                 local Config = getgenv().AiriConfig
                 if Config and Config.NoFallDamage and (remoteName == "TakeFallDamage" or remoteName == "StartFallDamage") then
                     return nil
                 end
             end
-            return oldFireServer(self, remoteName, ...)
-        end)
+            
+            -- Pass through normally
+            return originalFireServer(self, remoteName, ...)
+        end
         getgenv()._AiriNetworkHookDone = true
     end
-    
-    -- ===========================================
-    -- 3. UNIFIED METAMETHOD PROTECTION (Invisible Shield)
-    -- ===========================================
-    if not getgenv()._AiriMetamethodHookDone then
-        local OldNamecall
-        OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-            local method = getnamecallmethod()
 
-            if not checkcaller() and typeof(self) == "Instance" then
-                -- Agresif Kick/Destroy Protection
-                if method == "Kick" and self == LocalPlayer then return nil end
-                if (method == "Destroy" or method == "destroy") and self == LocalPlayer then return nil end
-
-                -- Blokir direct logging via FireServer remote
-                if method == "FireServer" then
-                    local remoteName = select(1, ...)
-                    if type(remoteName) == "string" and (remoteName == "LogKick" or remoteName == "LogACTrigger") then 
-                        return nil 
-                    end
-                    -- Gunakan self.Name secara langsung, executor modern akan melempar Lua Error (yang tertangkap/diabaikan di hook) 
-                    -- HINDARI membuat function() di dalam namecall loop.
-                    if self.Name == "LogKick" or self.Name == "LogACTrigger" then
-                        return nil
-                    end
-                end
-
-                -- BodyMover Integrity (HasTag Spoof) khusus untuk BodyMover
-                if method == "HasTag" then
-                    local part = select(1, ...)
-                    local tag = select(2, ...)
-                    
-                    if typeof(part) == "Instance" and tag == BODY_MOVER_TAG then
-                        if part:IsA("BodyMover") then
-                            return true
-                        end
-                    end
-                end
-                
-                -- Attribute Spoof & BodyMover protection
-                if method == "GetAttribute" then
-                    local attr = select(1, ...)
-                    if type(attr) == "string" then
-                        local Config = getgenv().AiriConfig
-                        if Config then
-                            if Config.AntiRagdoll then
-                                if RAGDOLL_FALSE[attr] then return false end
-                                if RAGDOLL_TRUE[attr] then return true end
-                            end
-                            if Config.NoDodgeDelay then
-                                if attr == "DashCooldown" then return 0 end
-                                if attr == "IsDashing" then return false end
-                            end
-                        end
-                        -- Spoof Lifetime attribute HANYA untuk BodyMovers
-                        if attr == "Lifetime" then
-                            if self:IsA("BodyMover") then
-                                return 5
-                            end
-                        end
-                    end
-                end
-            end
-            
-            if OldNamecall then
-                return OldNamecall(self, ...)
-            end
-            return nil
-        end))
-        getgenv()._AiriMetamethodHookDone = true
-    end
-    
-    print("[Airi Hub V3] AC Total Shutdown FULLY RESTORED & ACTIVE.")
+    print("[Airi Hub] AntiDetect V6 (Ultimate Stability) INITIALIZED =====================")
 end
 
 function AntiDetect.Unload()
