@@ -213,7 +213,7 @@ end)
 Tabs.Combat:CreateSection("Auto Parry Settings")
 Tabs.Combat:CreateToggle({ Name = "Enable Auto Parry", CurrentValue = Config.AutoParry, Flag = "AutoParryToggle", Callback = function(s) Config.AutoParry = s end })
 Tabs.Combat:CreateSlider({ Name = "Parry Delay", Range = {0.1, 1}, Increment = 0.1, CurrentValue = Config.AutoParryDelay, Flag = "AutoParryDelay", Callback = function(v) Config.AutoParryDelay = v end })
-Tabs.Combat:CreateKeybind({ Name = "Parry Toggle Keybind", CurrentKeybind = Config.AutoParryToggleKeybind, HoldToInteract = false, Flag = "AutoParryBind", Callback = function(k) if type(k)=="userdata" then Config.AutoParryToggleKeybind = tostring(k.Name) end end })
+Tabs.Combat:CreateKeybind({ Name = "Parry Toggle Keybind", CurrentKeybind = Config.AutoParryToggleKeybind, HoldToInteract = false, Flag = "AutoParryBind", Callback = function(k) if type(k)=="userdata" then Config.AutoParryToggleKeybind = (k.Name=="Escape") and "None" or tostring(k.Name) end end })
 Tabs.Combat:CreateSlider({ Name = "Parry Range", Range = {5, 50}, Increment = 1, CurrentValue = Config.AutoParryRange, Flag = "AutoParryRange", Callback = function(v) Config.AutoParryRange = v end })
 Tabs.Combat:CreateSlider({ Name = "Parry FOV", Range = {10, 360}, Increment = 5, CurrentValue = Config.AutoParryFOV, Flag = "AutoParryFOV", Callback = function(v) Config.AutoParryFOV = v end })
 Tabs.Combat:CreateToggle({ Name = "Teamcheck", CurrentValue = Config.AutoParryTeamCheck, Flag = "AutoParryTeam", Callback = function(s) Config.AutoParryTeamCheck = s end })
@@ -230,7 +230,7 @@ Tabs.Combat:CreateSlider({ Name = "Auto Equip Delay", Range = {0, 2}, Increment 
 Tabs.Combat:CreateSection("Anti Parry")
 Tabs.Combat:CreateToggle({ Name = "Enable Anti Parry", CurrentValue = Config.AntiParryEnabled, Flag = "AntiParryTog", Callback = function(s) Config.AntiParryEnabled = s end })
 Tabs.Combat:CreateDropdown({ Name = "Anti Parry Mode", Options = {"Hold", "Toggle"}, Flag = "AntiParryMode", Callback = function(o) Config.AntiParryMode = type(o)=="table" and o[1] or o end })
-Tabs.Combat:CreateKeybind({ Name = "Anti Parry Keybind", CurrentKeybind = Config.AntiParryToggleKeybind, HoldToInteract = false, Flag = "AntiParryBind", Callback = function(k) if type(k)=="userdata" then Config.AntiParryToggleKeybind = tostring(k.Name) end end })
+Tabs.Combat:CreateKeybind({ Name = "Anti Parry Keybind", CurrentKeybind = Config.AntiParryToggleKeybind, HoldToInteract = false, Flag = "AntiParryBind", Callback = function(k) if type(k)=="userdata" then Config.AntiParryToggleKeybind = (k.Name=="Escape") and "None" or tostring(k.Name) end end })
 
 Tabs.Combat:CreateSection("No Delay & Movement")
 Tabs.Combat:CreateToggle({ Name = "No Jump Delay", CurrentValue = Config.NoJumpDelay, Flag = "NoJumpTog", Callback = function(s) Config.NoJumpDelay = s end })
@@ -239,7 +239,7 @@ Tabs.Combat:CreateToggle({ Name = "Infinite Stamina", CurrentValue = Config.InfS
 
 Tabs.Combat:CreateSection("Hitbox Expander")
 Tabs.Combat:CreateToggle({ Name = "Enable Hitbox Expander", CurrentValue = Config.HitboxExpander, Flag = "HitboxTog", Callback = function(s) Config.HitboxExpander = s end })
-Tabs.Combat:CreateKeybind({ Name = "Hitbox Keybind", CurrentKeybind = Config.HitboxExpanderKeybind, HoldToInteract = false, Flag = "HitboxBind", Callback = function(k) if type(k)=="userdata" then Config.HitboxExpanderKeybind = tostring(k.Name) end end })
+Tabs.Combat:CreateKeybind({ Name = "Hitbox Keybind", CurrentKeybind = Config.HitboxExpanderKeybind, HoldToInteract = false, Flag = "HitboxBind", Callback = function(k) if type(k)=="userdata" then Config.HitboxExpanderKeybind = (k.Name=="Escape") and "None" or tostring(k.Name) end end })
 Tabs.Combat:CreateSlider({ Name = "Hitbox Size", Range = {0.1, 50}, Increment = 0.5, CurrentValue = Config.HitboxExpanderSize, Flag = "HitboxSizeBtn", Callback = function(v) Config.HitboxExpanderSize = v end })
 Tabs.Combat:CreateDropdown({ Name = "Target Part", Options = {"Head", "Torso", "HumanoidRootPart", "Arms", "Legs"}, Flag = "HitboxTargetOpt", Callback = function(o) Config.HitboxTarget = type(o)=="table" and o[1] or o end })
 Tabs.Combat:CreateSlider({ Name = "Opacity", Range = {0, 1}, Increment = 0.1, CurrentValue = Config.HitboxOpacity, Flag = "HitboxOpac", Callback = function(v) Config.HitboxOpacity = v end })
@@ -253,9 +253,9 @@ Tabs.Combat:CreateSlider({ Name = "Rainbow Speed", Range = {1, 10}, Increment = 
 Tabs.Aimbot:CreateSection("Aimbot Settings")
 Tabs.Aimbot:CreateToggle({ Name = "Enable Aimbot", CurrentValue = Config.AimbotEnabled, Flag = "AimbotTog", Callback = function(s) Config.AimbotEnabled = s end })
 Tabs.Aimbot:CreateDropdown({ Name = "Aimbot Mode", Options = {"Hold", "Toggle", "Trigger"}, Flag = "AimMode", Callback = function(o) Config.AimbotMode = type(o)=="table" and o[1] or o end })
-Tabs.Aimbot:CreateKeybind({ Name = "Toggle Keybind", CurrentKeybind = Config.AimbotToggleKeybind, HoldToInteract = false, Flag = "AimTogBind", Callback = function(k) if type(k)=="userdata" then Config.AimbotToggleKeybind = tostring(k.Name) end end })
-Tabs.Aimbot:CreateKeybind({ Name = "Hold Keybind", CurrentKeybind = Config.AimbotHoldKeybind, HoldToInteract = false, Flag = "AimHoldBind", Callback = function(k) if type(k)=="userdata" then Config.AimbotHoldKeybind = tostring(k.Name) end end })
-Tabs.Aimbot:CreateKeybind({ Name = "Trigger Keybind", CurrentKeybind = Config.AimbotTriggerKeybind, HoldToInteract = false, Flag = "AimTrigBind", Callback = function(k) if type(k)=="userdata" then Config.AimbotTriggerKeybind = tostring(k.Name) end end })
+Tabs.Aimbot:CreateKeybind({ Name = "Toggle Keybind", CurrentKeybind = Config.AimbotToggleKeybind, HoldToInteract = false, Flag = "AimTogBind", Callback = function(k) if type(k)=="userdata" then Config.AimbotToggleKeybind = (k.Name=="Escape") and "None" or tostring(k.Name) end end })
+Tabs.Aimbot:CreateKeybind({ Name = "Hold Keybind", CurrentKeybind = Config.AimbotHoldKeybind, HoldToInteract = false, Flag = "AimHoldBind", Callback = function(k) if type(k)=="userdata" then Config.AimbotHoldKeybind = (k.Name=="Escape") and "None" or tostring(k.Name) end end })
+Tabs.Aimbot:CreateKeybind({ Name = "Trigger Keybind", CurrentKeybind = Config.AimbotTriggerKeybind, HoldToInteract = false, Flag = "AimTrigBind", Callback = function(k) if type(k)=="userdata" then Config.AimbotTriggerKeybind = (k.Name=="Escape") and "None" or tostring(k.Name) end end })
 Tabs.Aimbot:CreateDropdown({ Name = "Aim Method", Options = {"Camera", "Mouse"}, Flag = "AimMethod", Callback = function(o) Config.AimbotMethod = type(o)=="table" and o[1] or o end })
 Tabs.Aimbot:CreateSlider({ Name = "Smoothness", Range = {0, 1}, Increment = 0.1, CurrentValue = Config.AimbotSmooth, Flag = "AimSmooth", Callback = function(v) Config.AimbotSmooth = v end })
 Tabs.Aimbot:CreateSlider({ Name = "FOV Size", Range = {0, 500}, Increment = 10, CurrentValue = Config.AimbotFOV, Flag = "AimFOV", Callback = function(v) Config.AimbotFOV = v end })
@@ -269,8 +269,8 @@ Tabs.Aimbot:CreateInput({ Name = "Blacklist Team", PlaceholderText = "Team Name.
 Tabs.Visuals:CreateSection("ESP Options")
 Tabs.Visuals:CreateToggle({ Name = "Enable ESP", CurrentValue = Config.ESPEnabled, Flag = "ESPToggle", Callback = function(s) Config.ESPEnabled = s; if VisualsModule and VisualsModule.ToggleESP then pcall(VisualsModule.ToggleESP, s) end end })
 Tabs.Visuals:CreateDropdown({ Name = "ESP Mode", Options = {"Hold", "Toggle"}, Flag = "ESPMode", Callback = function(o) Config.ESPMode = type(o)=="table" and o[1] or o end })
-Tabs.Visuals:CreateKeybind({ Name = "Toggle Keybind", CurrentKeybind = Config.ESPToggleKeybind, HoldToInteract = false, Flag = "ESPTogBind", Callback = function(k) if type(k)=="userdata" then Config.ESPToggleKeybind = tostring(k.Name) end end })
-Tabs.Visuals:CreateKeybind({ Name = "Hold Keybind", CurrentKeybind = Config.ESPHoldKeybind, HoldToInteract = false, Flag = "ESPHoldBind", Callback = function(k) if type(k)=="userdata" then Config.ESPHoldKeybind = tostring(k.Name) end end })
+Tabs.Visuals:CreateKeybind({ Name = "Toggle Keybind", CurrentKeybind = Config.ESPToggleKeybind, HoldToInteract = false, Flag = "ESPTogBind", Callback = function(k) if type(k)=="userdata" then Config.ESPToggleKeybind = (k.Name=="Escape") and "None" or tostring(k.Name) end end })
+Tabs.Visuals:CreateKeybind({ Name = "Hold Keybind", CurrentKeybind = Config.ESPHoldKeybind, HoldToInteract = false, Flag = "ESPHoldBind", Callback = function(k) if type(k)=="userdata" then Config.ESPHoldKeybind = (k.Name=="Escape") and "None" or tostring(k.Name) end end })
 Tabs.Visuals:CreateSlider({ Name = "ESP Opacity", Range = {0, 1}, Increment = 0.1, CurrentValue = Config.ESPOpacity, Flag = "ESPOpac", Callback = function(v) Config.ESPOpacity = v end })
 Tabs.Visuals:CreateDropdown({ Name = "Color Mode", Options = {"Static", "Rainbow"}, CurrentOption = {Config.ESPColorMode}, Flag = "ESPColMode", Callback = function(o) Config.ESPColorMode = type(o)=="table" and o[1] or o end })
 Tabs.Visuals:CreateColorPicker({ Name = "Static Color", Color = Config.ESPStaticColor, Flag = "ESPColPick", Callback = function(c) Config.ESPStaticColor = c end })
@@ -329,8 +329,20 @@ Tabs.Settings:BuildThemeSection()
 -- ================================================================
 -- GLOBAL KEYBIND & INPUT MANAGER
 -- ================================================================
+local StarterGui = game:GetService("StarterGui")
+
 local function IsTyping()
     return UserInputService:GetFocusedTextBox() ~= nil
+end
+
+local function Toast(title, text)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = 2.5,
+        })
+    end)
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -340,33 +352,38 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     local keyName = input.KeyCode.Name
 
     -- Toggle Hotkeys
-    if Config.HitboxExpanderKeybind == keyName then
+    if Config.HitboxExpanderKeybind ~= "None" and Config.HitboxExpanderKeybind == keyName then
         Config.HitboxExpander = not Config.HitboxExpander
+        Toast("Hitbox Expander", Config.HitboxExpander and "✅ ON" or "❌ OFF")
     end
-    
-    if Config.AutoParryToggleKeybind == keyName then
+
+    if Config.AutoParryToggleKeybind ~= "None" and Config.AutoParryToggleKeybind == keyName then
         Config.AutoParry = not Config.AutoParry
+        Toast("Auto Parry", Config.AutoParry and "✅ ON" or "❌ OFF")
     end
-    
-    if Config.AntiParryToggleKeybind == keyName then
-        Config.AntiParry = not Config.AntiParry
+
+    if Config.AntiParryToggleKeybind ~= "None" and Config.AntiParryToggleKeybind == keyName then
+        Config.AntiParryEnabled = not Config.AntiParryEnabled
+        Toast("Anti Parry", Config.AntiParryEnabled and "✅ ON" or "❌ OFF")
     end
-    
-    if Config.AimbotToggleKeybind == keyName then
+
+    if Config.AimbotToggleKeybind ~= "None" and Config.AimbotToggleKeybind == keyName then
         Config.AimbotEnabled = not Config.AimbotEnabled
+        Toast("Aimbot", Config.AimbotEnabled and "✅ ON" or "❌ OFF")
     end
-    
-    if Config.ESPToggleKeybind == keyName then
+
+    if Config.ESPToggleKeybind ~= "None" and Config.ESPToggleKeybind == keyName then
         Config.ESPEnabled = not Config.ESPEnabled
         if VisualsModule and VisualsModule.ToggleESP then pcall(VisualsModule.ToggleESP, Config.ESPEnabled) end
+        Toast("ESP", Config.ESPEnabled and "✅ ON" or "❌ OFF")
     end
 
     -- Hold Hotkeys (Activation)
-    if Config.AimbotHoldKeybind == keyName and Config.AimbotMode == "Hold" then
+    if Config.AimbotHoldKeybind ~= "None" and Config.AimbotHoldKeybind == keyName and Config.AimbotMode == "Hold" then
         Config.AimbotEnabled = true
     end
-    
-    if Config.ESPHoldKeybind == keyName and Config.ESPMode == "Hold" then
+
+    if Config.ESPHoldKeybind ~= "None" and Config.ESPHoldKeybind == keyName and Config.ESPMode == "Hold" then
         Config.ESPEnabled = true
         if VisualsModule and VisualsModule.ToggleESP then pcall(VisualsModule.ToggleESP, true) end
     end
