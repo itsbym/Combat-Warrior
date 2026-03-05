@@ -33,20 +33,33 @@ function AntiDetect.Init()
     end)
     if networkSuccess then Network = networkResult end
     
-    local acSuccess, acResult = pcall(function()
-        return require(ReplicatedStorage.Shared.Source.AntiCheat.AntiCheatHandler)
+    -- JANGAN hook AntiCheatHandler! Developer gamenya nambahin jebakan (Honeypot) di AntiCheatHandlerClient
+    -- yang bakal nge-crash-in executor pakai 'while true do Instance.new("Part")' kalau AntiCheatHandler.punish berubah!
+    -- Sebagai gantinya, kita hook wrapper-nya (AntiCheatHandlerClient) yang BEBAS dari pengecekan honeypot!
+    local acClientSuccess, acClientResult = pcall(function()
+        return require(ReplicatedStorage.Client.Source.AntiCheat.AntiCheatHandlerClient)
     end)
-    if acSuccess and type(acResult) == "table" then 
-        AntiCheatHandler = acResult 
+    
+    if acClientSuccess and type(acClientResult) == "table" then 
+        local AntiCheatHandlerClient = acClientResult 
         
-        -- THE ULTIMATE FIX FOR CTD: Hook the punish function to prevent the deliberate while true do crash loop
-        if type(AntiCheatHandler.punish) == "function" and not getgenv()._AiriPunishHookDone then
-            hookfunction(AntiCheatHandler.punish, function(...)
+        -- THE ULTIMATE FIX FOR CTD: Hook the Client wrapper instead of the Core handler (which has the honeypot)
+        if type(AntiCheatHandlerClient.punish) == "function" and not getgenv()._AiriPunishHookDone then
+            hookfunction(AntiCheatHandlerClient.punish, function(...)
                 -- Do absolutely nothing. Block the punishment entirely.
                 return nil
             end)
             getgenv()._AiriPunishHookDone = true
         end
+    end
+    
+    -- BACKDOOR AC DISABLED HOOK
+    if AntiCheatHandler and type(AntiCheatHandler.getIsAcDisabled) == "function" and not getgenv()._AiriBackdoorHookDone then
+        hookfunction(AntiCheatHandler.getIsAcDisabled, function()
+            -- Force AC to think it's disabled globally for this player
+            return true
+        end)
+        getgenv()._AiriBackdoorHookDone = true
     end
     
     -- ===========================================
@@ -98,14 +111,15 @@ function AntiDetect.Init()
                     end
                 end
 
-                -- Pengecekan Instance secara aman tanpa membuat fungsi anonim di hot-loop (mencegah memory leak / CTD)
-                local isSafe, isBodyMover = pcall(game.IsA, self, "BodyMover")
-                
                 -- BodyMover Integrity (HasTag Spoof) khusus untuk BodyMover
                 if method == "HasTag" then
-                    local tag = select(1, ...)
-                    if tag == BODY_MOVER_TAG and isSafe and isBodyMover then
-                        return true
+                    local part = select(1, ...)
+                    local tag = select(2, ...)
+                    
+                    if typeof(part) == "Instance" and tag == BODY_MOVER_TAG then
+                        if part:IsA("BodyMover") then
+                            return true
+                        end
                     end
                 end
                 
@@ -124,9 +138,9 @@ function AntiDetect.Init()
                                 if attr == "IsDashing" then return false end
                             end
                         end
-                        -- Spoof Lifetime attribute HANYA untuk BodyMovers (Mencegah C++ Engine Crash karena tipe salah di sistem partikel jw dll)
+                        -- Spoof Lifetime attribute HANYA untuk BodyMovers
                         if attr == "Lifetime" then
-                            if isSafe and isBodyMover then
+                            if self:IsA("BodyMover") then
                                 return 5
                             end
                         end
