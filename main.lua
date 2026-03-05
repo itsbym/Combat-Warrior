@@ -11,13 +11,38 @@ getgenv().AiriHubExecuted = true
 -- INIT GLOBAL CONFIG
 -- ================================================================
 getgenv().AiriConfig = getgenv().AiriConfig or {
-    AutoParry = false, AutoParryDelay = 0.1, AntiParry = false,
-    UseSound = true, UseAnimation = true, ParryRange = 15,
-    HitboxExpander = false, HitboxSize = 1, HitboxPart = "HumanoidRootPart",
-    InfStamina = false, NoJumpDelay = false, NoDodgeDelay = false, NoFallDamage = true, AntiRagdoll = false,
-    ESPEnabled = false, ESPOpacity = 1, ESPBox = true, ESPBoxStyle = "Normal",
-    ESPChams = false, ESPSkeleton = false, ESPTracers = false, ESPNames = true, ESPDistances = true, ESPHealthBar = true,
-    AimbotEnabled = false, AimbotSmooth = 0.5, AimbotFOV = 100, ShowFOV = true
+    -- PARRY CONFIG
+    AutoParry = false, AutoParryDelay = 0.1, AutoParryKeybind = "None",
+    AutoParryRange = 15, AutoParryFOV = 100, AutoParryTeamCheck = false,
+    AutoParryWhitelistPlayer = "", AutoParryBlacklistPlayer = "",
+    AutoParryWhitelistTeam = "", AutoParryBlacklistTeam = "",
+    AutoParryMode = "Toggle", AutoParryToggleKeybind = "None",
+    AutoParryDetection = "Both", AutoParryChance = 100,
+    AutoEquip = false, AutoEquipDelay = 0,
+
+    -- NO DELAY / STAMINA
+    NoJumpDelay = false, NoDodgeDelay = false, InfStamina = false, NoFallDamage = true, AntiRagdoll = false,
+
+    -- ANTI PARRY
+    AntiParryMode = "Toggle", AntiParryToggleKeybind = "None",
+
+    -- HITBOX EXPANDER
+    HitboxExpander = false, HitboxExpanderKeybind = "None", HitboxExpanderSize = 5,
+    HitboxTarget = "HumanoidRootPart", HitboxOpacity = 0.5,
+    HitboxColorMode = "Static", HitboxStaticColor = Color3.fromRGB(255, 0, 0), HitboxRainbowSpeed = 1,
+
+    -- AIMBOT
+    AimbotMode = "Toggle", AimbotToggleKeybind = "None", AimbotHoldKeybind = "None", AimbotTriggerKeybind = "None",
+    AimbotSmooth = 0.5, AimbotFOV = 100, AimbotTeamCheck = false,
+    AimbotWhitelistTeam = "", AimbotBlacklistTeam = "", AimbotMethod = "Camera",
+
+    -- ESP
+    ESPEnabled = false, ESPMode = "Toggle", ESPToggleKeybind = "None", ESPHoldKeybind = "None",
+    ESPTeamCheck = false, ESPWhitelistTeam = "", ESPBlacklistTeam = "",
+    ESPOpacity = 1, ESPColorMode = "Static", ESPStaticColor = Color3.fromRGB(255, 255, 255), ESPRainbowSpeed = 1,
+    
+    -- GENERAL VISUALS
+    ShowFOV = true
 }
 local Config = getgenv().AiriConfig
 
@@ -153,10 +178,10 @@ if not Window then
 end
 
 local Tabs = {}
-Tabs.Combat   = Window:CreateTab({ Name = "Combat",   Icon = "code",        ImageSource = "Material", ShowTitle = true })
-Tabs.Movement = Window:CreateTab({ Name = "Movement", Icon = "group_work",  ImageSource = "Material", ShowTitle = true })
-Tabs.Visuals  = Window:CreateTab({ Name = "Visuals",  Icon = "list",        ImageSource = "Material", ShowTitle = true })
-Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "settings_phone", ImageSource = "Material", ShowTitle = true })
+Tabs.Combat   = Window:CreateTab({ Name = "Combat",   Icon = "swords", ImageSource = "Lucide", ShowTitle = true })
+Tabs.Visuals  = Window:CreateTab({ Name = "Visuals",  Icon = "eye", ImageSource = "Lucide", ShowTitle = true })
+Tabs.Aimbot   = Window:CreateTab({ Name = "Aimbot",   Icon = "crosshair", ImageSource = "Lucide", ShowTitle = true })
+Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "settings", ImageSource = "Lucide", ShowTitle = true })
 
 Window:CreateHomeTab()
 
@@ -180,136 +205,183 @@ task.spawn(function()
 end)
 
 -----------------------------------------
--- UI POPULATION (COMBAT)
+-- UI POPULATION (COMBAT TAB)
 -----------------------------------------
 Tabs.Combat:CreateSection("Auto Parry Settings")
-Tabs.Combat:CreateToggle({
-    Name = "Auto Parry",
-    CurrentValue = getgenv().AiriConfig.AutoParry,
-    Flag = "AutoParryToggle",
-    Callback = function(state) getgenv().AiriConfig.AutoParry = state end
-})
+Tabs.Combat:CreateToggle({ Name = "Enable Auto Parry", CurrentValue = Config.AutoParry, Flag = "AutoParryToggle", Callback = function(s) Config.AutoParry = s end })
+Tabs.Combat:CreateSlider({ Name = "Parry Delay", Range = {0.1, 1}, Increment = 0.1, CurrentValue = Config.AutoParryDelay, Flag = "AutoParryDelay", Callback = function(v) Config.AutoParryDelay = v end })
+Tabs.Combat:CreateKeybind({ Name = "Parry Toggle Keybind", CurrentKeybind = Config.AutoParryToggleKeybind, HoldToInteract = false, Flag = "AutoParryBind", Callback = function(k) Config.AutoParryToggleKeybind = k.Name end })
+Tabs.Combat:CreateSlider({ Name = "Parry Range", Range = {5, 50}, Increment = 1, CurrentValue = Config.AutoParryRange, Flag = "AutoParryRange", Callback = function(v) Config.AutoParryRange = v end })
+Tabs.Combat:CreateSlider({ Name = "Parry FOV", Range = {10, 360}, Increment = 5, CurrentValue = Config.AutoParryFOV, Flag = "AutoParryFOV", Callback = function(v) Config.AutoParryFOV = v end })
+Tabs.Combat:CreateToggle({ Name = "Teamcheck", CurrentValue = Config.AutoParryTeamCheck, Flag = "AutoParryTeam", Callback = function(s) Config.AutoParryTeamCheck = s end })
+Tabs.Combat:CreateInput({ Name = "Whitelist Player", PlaceholderText = "Username...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.AutoParryWhitelistPlayer = t end })
+Tabs.Combat:CreateInput({ Name = "Blacklist Player", PlaceholderText = "Username...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.AutoParryBlacklistPlayer = t end })
+Tabs.Combat:CreateInput({ Name = "Whitelist Team", PlaceholderText = "Team Name...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.AutoParryWhitelistTeam = t end })
+Tabs.Combat:CreateInput({ Name = "Blacklist Team", PlaceholderText = "Team Name...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.AutoParryBlacklistTeam = t end })
+Tabs.Combat:CreateDropdown({ Name = "Parry Mode", Options = {"Hold", "Toggle", "Trigger"}, CurrentValue = Config.AutoParryMode, Flag = "AutoParryMode", Callback = function(o) Config.AutoParryMode = o end })
+Tabs.Combat:CreateDropdown({ Name = "Detection Method", Options = {"Animation", "Sound", "Both"}, CurrentValue = Config.AutoParryDetection, Flag = "AutoParryDetect", Callback = function(o) Config.AutoParryDetection = o end })
+Tabs.Combat:CreateSlider({ Name = "Parry Chance (%)", Range = {1, 100}, Increment = 1, CurrentValue = Config.AutoParryChance, Flag = "AutoParryChance", Callback = function(v) Config.AutoParryChance = v end })
+Tabs.Combat:CreateToggle({ Name = "Auto Equip Weapon", CurrentValue = Config.AutoEquip, Flag = "AutoEquipTog", Callback = function(s) Config.AutoEquip = s end })
+Tabs.Combat:CreateSlider({ Name = "Auto Equip Delay", Range = {0, 2}, Increment = 0.1, CurrentValue = Config.AutoEquipDelay, Flag = "AutoEquipDelay", Callback = function(v) Config.AutoEquipDelay = v end })
 
-Tabs.Combat:CreateSlider({
-    Name = "Auto Parry Range",
-    Range = {5, 30},
-    Increment = 1,
-    CurrentValue = getgenv().AiriConfig.ParryRange,
-    Flag = "AutoParryRangeSlider",
-    Callback = function(value) getgenv().AiriConfig.ParryRange = value end
-})
+Tabs.Combat:CreateSection("Anti Parry")
+Tabs.Combat:CreateDropdown({ Name = "Anti Parry Mode", Options = {"Hold", "Toggle"}, CurrentValue = Config.AntiParryMode, Flag = "AntiParryMode", Callback = function(o) Config.AntiParryMode = o end })
+Tabs.Combat:CreateKeybind({ Name = "Anti Parry Keybind", CurrentKeybind = Config.AntiParryToggleKeybind, HoldToInteract = false, Flag = "AntiParryBind", Callback = function(k) Config.AntiParryToggleKeybind = k.Name end })
 
-Tabs.Combat:CreateSection("Combat Assist")
-Tabs.Combat:CreateToggle({
-    Name = "Anti Parry",
-    CurrentValue = getgenv().AiriConfig.AntiParry,
-    Flag = "AntiParryToggle",
-    Callback = function(state) getgenv().AiriConfig.AntiParry = state end
-})
+Tabs.Combat:CreateSection("No Delay & Movement")
+Tabs.Combat:CreateToggle({ Name = "No Jump Delay", CurrentValue = Config.NoJumpDelay, Flag = "NoJumpTog", Callback = function(s) Config.NoJumpDelay = s end })
+Tabs.Combat:CreateToggle({ Name = "No Dodge Delay", CurrentValue = Config.NoDodgeDelay, Flag = "NoDodgeTog", Callback = function(s) Config.NoDodgeDelay = s end })
+Tabs.Combat:CreateToggle({ Name = "Infinite Stamina", CurrentValue = Config.InfStamina, Flag = "InfStamTog", Callback = function(s) Config.InfStamina = s end })
 
-Tabs.Combat:CreateToggle({
-    Name = "Hitbox Expander",
-    CurrentValue = getgenv().AiriConfig.HitboxExpander,
-    Flag = "HitboxExpanderToggle",
-    Callback = function(state) getgenv().AiriConfig.HitboxExpander = state end
-})
-
-Tabs.Combat:CreateSlider({
-    Name = "Hitbox Size",
-    Range = {0.1, 10},
-    Increment = 0.1,
-    CurrentValue = getgenv().AiriConfig.HitboxSize,
-    Flag = "HitboxSizeSlider",
-    Callback = function(value) getgenv().AiriConfig.HitboxSize = value end
-})
+Tabs.Combat:CreateSection("Hitbox Expander")
+Tabs.Combat:CreateToggle({ Name = "Enable Hitbox Expander", CurrentValue = Config.HitboxExpander, Flag = "HitboxTog", Callback = function(s) Config.HitboxExpander = s end })
+Tabs.Combat:CreateKeybind({ Name = "Hitbox Keybind", CurrentKeybind = Config.HitboxExpanderKeybind, HoldToInteract = false, Flag = "HitboxBind", Callback = function(k) Config.HitboxExpanderKeybind = k.Name end })
+Tabs.Combat:CreateSlider({ Name = "Hitbox Size", Range = {0.1, 50}, Increment = 0.5, CurrentValue = Config.HitboxExpanderSize, Flag = "HitboxSizeBtn", Callback = function(v) Config.HitboxExpanderSize = v end })
+Tabs.Combat:CreateDropdown({ Name = "Target Part", Options = {"Head", "Torso", "HumanoidRootPart", "Arms", "Legs"}, CurrentValue = Config.HitboxTarget, Flag = "HitboxTargetOpt", Callback = function(o) Config.HitboxTarget = o end })
+Tabs.Combat:CreateSlider({ Name = "Opacity", Range = {0, 1}, Increment = 0.1, CurrentValue = Config.HitboxOpacity, Flag = "HitboxOpac", Callback = function(v) Config.HitboxOpacity = v end })
+Tabs.Combat:CreateDropdown({ Name = "Color Mode", Options = {"Static", "Rainbow"}, CurrentValue = Config.HitboxColorMode, Flag = "HitboxColMode", Callback = function(o) Config.HitboxColorMode = o end })
+Tabs.Combat:CreateColorPicker({ Name = "Static Color", Color = Config.HitboxStaticColor, Flag = "HitboxColorPick", Callback = function(c) Config.HitboxStaticColor = c end })
+Tabs.Combat:CreateSlider({ Name = "Rainbow Speed", Range = {1, 10}, Increment = 1, CurrentValue = Config.HitboxRainbowSpeed, Flag = "HitboxRBSpeed", Callback = function(v) Config.HitboxRainbowSpeed = v end })
 
 -----------------------------------------
--- UI POPULATION (MOVEMENT)
+-- UI POPULATION (AIMBOT TAB)
 -----------------------------------------
-Tabs.Movement:CreateSection("Stamina & Cooldowns")
-Tabs.Movement:CreateToggle({
-    Name = "Infinite Stamina",
-    CurrentValue = getgenv().AiriConfig.InfStamina,
-    Flag = "InfStaminaToggle",
-    Callback = function(state) getgenv().AiriConfig.InfStamina = state end
-})
-
-Tabs.Movement:CreateToggle({
-    Name = "No Jump Delay",
-    CurrentValue = getgenv().AiriConfig.NoJumpDelay,
-    Flag = "NoJumpDelayToggle",
-    Callback = function(state) getgenv().AiriConfig.NoJumpDelay = state end
-})
-
-Tabs.Movement:CreateToggle({
-    Name = "No Dodge Delay",
-    CurrentValue = getgenv().AiriConfig.NoDodgeDelay,
-    Flag = "NoDodgeDelayToggle",
-    Callback = function(state) getgenv().AiriConfig.NoDodgeDelay = state end
-})
+Tabs.Aimbot:CreateSection("Aimbot Settings")
+Tabs.Aimbot:CreateDropdown({ Name = "Aimbot Mode", Options = {"Hold", "Toggle", "Trigger"}, CurrentValue = Config.AimbotMode, Flag = "AimMode", Callback = function(o) Config.AimbotMode = o end })
+Tabs.Aimbot:CreateKeybind({ Name = "Toggle Keybind", CurrentKeybind = Config.AimbotToggleKeybind, HoldToInteract = false, Flag = "AimTogBind", Callback = function(k) Config.AimbotToggleKeybind = k.Name end })
+Tabs.Aimbot:CreateKeybind({ Name = "Hold Keybind", CurrentKeybind = Config.AimbotHoldKeybind, HoldToInteract = false, Flag = "AimHoldBind", Callback = function(k) Config.AimbotHoldKeybind = k.Name end })
+Tabs.Aimbot:CreateKeybind({ Name = "Trigger Keybind", CurrentKeybind = Config.AimbotTriggerKeybind, HoldToInteract = false, Flag = "AimTrigBind", Callback = function(k) Config.AimbotTriggerKeybind = k.Name end })
+Tabs.Aimbot:CreateDropdown({ Name = "Aim Method", Options = {"Camera", "Mouse"}, CurrentValue = Config.AimbotMethod, Flag = "AimMethod", Callback = function(o) Config.AimbotMethod = o end })
+Tabs.Aimbot:CreateSlider({ Name = "Smoothness", Range = {0, 1}, Increment = 0.1, CurrentValue = Config.AimbotSmooth, Flag = "AimSmooth", Callback = function(v) Config.AimbotSmooth = v end })
+Tabs.Aimbot:CreateSlider({ Name = "FOV Size", Range = {0, 500}, Increment = 10, CurrentValue = Config.AimbotFOV, Flag = "AimFOV", Callback = function(v) Config.AimbotFOV = v end })
+Tabs.Aimbot:CreateToggle({ Name = "Teamcheck", CurrentValue = Config.AimbotTeamCheck, Flag = "AimTeam", Callback = function(s) Config.AimbotTeamCheck = s end })
+Tabs.Aimbot:CreateInput({ Name = "Whitelist Team", PlaceholderText = "Team Name...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.AimbotWhitelistTeam = t end })
+Tabs.Aimbot:CreateInput({ Name = "Blacklist Team", PlaceholderText = "Team Name...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.AimbotBlacklistTeam = t end })
 
 -----------------------------------------
--- UI POPULATION (VISUALS)
+-- UI POPULATION (VISUALS TAB)
 -----------------------------------------
-Tabs.Visuals:CreateSection("ESP Settings")
-Tabs.Visuals:CreateToggle({
-    Name = "Enable ESP",
-    CurrentValue = getgenv().AiriConfig.ESPEnabled,
-    Flag = "ESPToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.ESPEnabled = state
-        if VisualsModule and VisualsModule.ToggleESP then
-            pcall(VisualsModule.ToggleESP, state)
-        end
-    end
-})
-
-Tabs.Visuals:CreateDropdown({
-    Name = "ESP Box Style",
-    Options = {"Corner", "Normal", "3D"},
-    CurrentValue = getgenv().AiriConfig.ESPBoxStyle,
-    Flag = "ESPBoxStyleDropdown",
-    Callback = function(value)
-        getgenv().AiriConfig.ESPBoxStyle = value
-        if VisualsModule and VisualsModule.SetBox then
-            pcall(VisualsModule.SetBox, getgenv().AiriConfig.ESPBox, value)
-        end
-    end
-})
-
-Tabs.Visuals:CreateToggle({
-    Name = "ESP Box",
-    CurrentValue = getgenv().AiriConfig.ESPBox,
-    Flag = "ESPBoxToggle",
-    Callback = function(state)
-        getgenv().AiriConfig.ESPBox = state
-        if VisualsModule and VisualsModule.SetBox then
-            pcall(VisualsModule.SetBox, state, getgenv().AiriConfig.ESPBoxStyle)
-        end
-    end
-})
-
-Tabs.Visuals:CreateSection("Aimbot Settings")
-Tabs.Visuals:CreateToggle({
-    Name = "Enable Aimbot (Hold RMB)",
-    CurrentValue = getgenv().AiriConfig.AimbotEnabled,
-    Flag = "AimbotToggle",
-    Callback = function(state) getgenv().AiriConfig.AimbotEnabled = state end
-})
-
-Tabs.Visuals:CreateSlider({
-    Name = "Aimbot Smoothness",
-    Range = {0, 1},
-    Increment = 0.1,
-    CurrentValue = getgenv().AiriConfig.AimbotSmooth,
-    Flag = "AimbotSmoothSlider",
-    Callback = function(value) getgenv().AiriConfig.AimbotSmooth = value end
-})
+Tabs.Visuals:CreateSection("ESP Options")
+Tabs.Visuals:CreateToggle({ Name = "Enable ESP", CurrentValue = Config.ESPEnabled, Flag = "ESPToggle", Callback = function(s) Config.ESPEnabled = s; if VisualsModule and VisualsModule.ToggleESP then pcall(VisualsModule.ToggleESP, s) end end })
+Tabs.Visuals:CreateDropdown({ Name = "ESP Mode", Options = {"Hold", "Toggle"}, CurrentValue = Config.ESPMode, Flag = "ESPMode", Callback = function(o) Config.ESPMode = o end })
+Tabs.Visuals:CreateKeybind({ Name = "Toggle Keybind", CurrentKeybind = Config.ESPToggleKeybind, HoldToInteract = false, Flag = "ESPTogBind", Callback = function(k) Config.ESPToggleKeybind = k.Name end })
+Tabs.Visuals:CreateKeybind({ Name = "Hold Keybind", CurrentKeybind = Config.ESPHoldKeybind, HoldToInteract = false, Flag = "ESPHoldBind", Callback = function(k) Config.ESPHoldKeybind = k.Name end })
+Tabs.Visuals:CreateSlider({ Name = "ESP Opacity", Range = {0, 1}, Increment = 0.1, CurrentValue = Config.ESPOpacity, Flag = "ESPOpac", Callback = function(v) Config.ESPOpacity = v end })
+Tabs.Visuals:CreateDropdown({ Name = "Color Mode", Options = {"Static", "Rainbow"}, CurrentValue = Config.ESPColorMode, Flag = "ESPColMode", Callback = function(o) Config.ESPColorMode = o end })
+Tabs.Visuals:CreateColorPicker({ Name = "Static Color", Color = Config.ESPStaticColor, Flag = "ESPColPick", Callback = function(c) Config.ESPStaticColor = c end })
+Tabs.Visuals:CreateSlider({ Name = "Rainbow Speed", Range = {1, 10}, Increment = 1, CurrentValue = Config.ESPRainbowSpeed, Flag = "ESPRBSpeed", Callback = function(v) Config.ESPRainbowSpeed = v end })
+Tabs.Visuals:CreateToggle({ Name = "Teamcheck", CurrentValue = Config.ESPTeamCheck, Flag = "ESPTchk", Callback = function(s) Config.ESPTeamCheck = s end })
+Tabs.Visuals:CreateInput({ Name = "Whitelist Team", PlaceholderText = "Team Name...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.ESPWhitelistTeam = t end })
+Tabs.Visuals:CreateInput({ Name = "Blacklist Team", PlaceholderText = "Team Name...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.ESPBlacklistTeam = t end })
 
 -----------------------------------------
 -- UI POPULATION (SETTINGS)
 -----------------------------------------
+Tabs.Settings:CreateSection("Script Configurations")
+-- ================================================================
+-- CONFIGURATION MANAGER (SAVE/LOAD)
+-- ================================================================
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
+local CONFIG_FILE = "AiriHub_CW_Config.json"
+
+local function SaveConfig()
+    if writefile then
+        local success, json = pcall(function() return HttpService:JSONEncode(Config) end)
+        if success then
+            writefile(CONFIG_FILE, json)
+            print("[Airi Hub] Configuration saved successfully to " .. CONFIG_FILE)
+        end
+    else
+        warn("[Airi Hub] Executor does not support writefile.")
+    end
+end
+
+local function LoadConfig()
+    if readfile and isfile and pcall(isfile, CONFIG_FILE) and isfile(CONFIG_FILE) then
+        local success, result = pcall(function()
+            local decoded = HttpService:JSONDecode(readfile(CONFIG_FILE))
+            for k, v in pairs(decoded) do
+                if Config[k] ~= nil then Config[k] = v end
+            end
+        end)
+        if success then
+            print("[Airi Hub] Configuration loaded successfully.")
+            -- Note: UI elements won't visually update instantly without calling Luna API methods.
+            -- But the internal bypass logic will use these variables.
+        else
+            warn("[Airi Hub] Failed to parse config JSON.")
+        end
+    end
+end
+
+Tabs.Settings:CreateButton({ Name = "Save Configuration", Callback = SaveConfig })
+Tabs.Settings:CreateButton({ Name = "Load Configuration", Callback = LoadConfig })
+
 Tabs.Settings:CreateSection("UI Settings")
 Tabs.Settings:BuildThemeSection()
 
-print("[Airi Hub] Script fully initialized.")
+-- ================================================================
+-- GLOBAL KEYBIND & INPUT MANAGER
+-- ================================================================
+local function IsTyping()
+    return UserInputService:GetFocusedTextBox() ~= nil
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed or IsTyping() then return end
+    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+
+    local keyName = input.KeyCode.Name
+
+    -- Toggle Hotkeys
+    if Config.HitboxExpanderKeybind == keyName then
+        Config.HitboxExpander = not Config.HitboxExpander
+    end
+    
+    if Config.AutoParryToggleKeybind == keyName then
+        Config.AutoParry = not Config.AutoParry
+    end
+    
+    if Config.AntiParryToggleKeybind == keyName then
+        Config.AntiParry = not Config.AntiParry
+    end
+    
+    if Config.AimbotToggleKeybind == keyName then
+        Config.AimbotEnabled = not Config.AimbotEnabled
+    end
+    
+    if Config.ESPToggleKeybind == keyName then
+        Config.ESPEnabled = not Config.ESPEnabled
+        if VisualsModule and VisualsModule.ToggleESP then pcall(VisualsModule.ToggleESP, Config.ESPEnabled) end
+    end
+
+    -- Hold Hotkeys (Activation)
+    if Config.AimbotHoldKeybind == keyName and Config.AimbotMode == "Hold" then
+        Config.AimbotEnabled = true
+    end
+    
+    if Config.ESPHoldKeybind == keyName and Config.ESPMode == "Hold" then
+        Config.ESPEnabled = true
+        if VisualsModule and VisualsModule.ToggleESP then pcall(VisualsModule.ToggleESP, true) end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+    if gameProcessed or IsTyping() then return end
+    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+
+    local keyName = input.KeyCode.Name
+    
+    -- Hold Hotkeys (Deactivation)
+    if Config.AimbotHoldKeybind == keyName and Config.AimbotMode == "Hold" then
+        Config.AimbotEnabled = false
+    end
+    
+    if Config.ESPHoldKeybind == keyName and Config.ESPMode == "Hold" then
+        Config.ESPEnabled = false
+        if VisualsModule and VisualsModule.ToggleESP then pcall(VisualsModule.ToggleESP, false) end
+    end
+end)
+
+print("[Airi Hub] Script fully initialized (V6 Modern UI).")

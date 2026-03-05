@@ -4,9 +4,11 @@
     Engine: Twilight ESP (Integrated via Nebula-Softworks)
 ]]
 
+local RunService = game:GetService("RunService")
 local VisualsModule = {}
+local Connections = {}
 
--- Global Config Initializer (Fallback if not set by main script)
+-- Global Config Initializer (Fallback)
 getgenv().AiriConfig = getgenv().AiriConfig or {
     ESPEnabled = false,
     ESPOpacity = 1,
@@ -17,16 +19,17 @@ getgenv().AiriConfig = getgenv().AiriConfig or {
     ESPTracers = false,
     ESPNames = true,
     ESPDistances = true,
-    ESPHealthBar = true
+    ESPHealthBar = true,
+    ESPTeamCheck = true,
+    ESPColorMode = "Static",
+    ESPStaticColor = Color3.new(1, 1, 1),
+    ESPRainbowSpeed = 5
 }
 
--- Reference to the external Twilight Library
 local Twilight = nil
+local hue = 0
 
--- Airi Hub Theme
-local AIRI_PURPLE = Color3.fromRGB(191, 64, 191)
-
--- Helper: Convert Box Style String to Twilight Int
+-- Helper: Convert Box Style String
 local function getBoxStyleInt(styleString)
     if styleString == "Corner" then return 1 end
     if styleString == "Normal" then return 2 end
@@ -38,9 +41,7 @@ end
 -- 1. INITIALIZATION
 -- ==========================================
 function VisualsModule.Init()
-    -- Load Twilight ESP Library safely
     local success, result = pcall(function()
-        -- Menggunakan URL raw dari repositori resmi Nebula-Softworks/Twilight-ESP
         return loadstring(game:HttpGet("https://raw.githubusercontent.com/Nebula-Softworks/Twilight-ESP/master/src/init.luau"))()
     end)
 
@@ -48,6 +49,26 @@ function VisualsModule.Init()
         Twilight = result
         print("[Airi Hub] Twilight ESP Engine Loaded Successfully.")
         VisualsModule.UpdateAll()
+        
+        -- Rainbow Engine Loop
+        local renderConn = RunService.RenderStepped:Connect(function(deltaTime)
+            local cfg = getgenv().AiriConfig
+            if Twilight and cfg.ESPEnabled and cfg.ESPColorMode == "Rainbow" then
+                hue = hue + (deltaTime * cfg.ESPRainbowSpeed * 0.1)
+                if hue >= 1 then hue = 0 end
+                
+                local c = Color3.fromHSV(hue, 1, 1)
+                Twilight:SetOptions({
+                    Box = { Color = c },
+                    Chams = { FillColor = c, OutlineColor = c },
+                    Skeleton = { Color = c },
+                    Tracer = { Color = c },
+                    Name = { Color = c },
+                    Distance = { Color = c }
+                })
+            end
+        end)
+        table.insert(Connections, renderConn)
     else
         warn("[Airi Hub] Failed to load Twilight ESP: " .. tostring(result))
     end
@@ -61,58 +82,63 @@ function VisualsModule.UpdateAll()
 
     local cfg = getgenv().AiriConfig
     
+    local showFriendly = not cfg.ESPTeamCheck
+    
+    local c = cfg.ESPColorMode == "Rainbow" and Color3.fromHSV(hue, 1, 1) or cfg.ESPStaticColor
+
     Twilight:SetOptions({
         Enabled = cfg.ESPEnabled,
         RefreshRate = 1/60,
-        MaxDistance = 1000,
+        MaxDistance = 5000,
 
-        -- Box ESP
         Box = {
-            Enabled = cfg.ESPBox,
+            Enabled = { enemy = cfg.ESPBox, friendly = showFriendly and cfg.ESPBox },
             Style = getBoxStyleInt(cfg.ESPBoxStyle),
             Thickness = 1,
             Transparency = cfg.ESPOpacity,
+            Color = c,
             Filled = { 
                 Enabled = false, 
                 Transparency = 0.6 * cfg.ESPOpacity 
             }
         },
 
-        -- Chams ESP
         Chams = {
-            Enabled = { enemy = cfg.ESPChams, friendly = false, ["local"] = false },
+            Enabled = { enemy = cfg.ESPChams, friendly = showFriendly and cfg.ESPChams, ["local"] = false },
             Fill = { Enabled = true, Transparency = 0.5 * cfg.ESPOpacity },
-            Outline = { Enabled = true, Thickness = 0.1 }
+            Outline = { Enabled = true, Thickness = 0.1 },
+            FillColor = c,
+            OutlineColor = c
         },
 
-        -- Skeleton ESP
         Skeleton = {
-            Enabled = { enemy = cfg.ESPSkeleton, friendly = false },
+            Enabled = { enemy = cfg.ESPSkeleton, friendly = showFriendly and cfg.ESPSkeleton },
             Thickness = 1,
-            Transparency = cfg.ESPOpacity
+            Transparency = cfg.ESPOpacity,
+            Color = c
         },
 
-        -- Tracers ESP
         Tracer = {
-            Enabled = { enemy = cfg.ESPTracers, friendly = false },
+            Enabled = { enemy = cfg.ESPTracers, friendly = showFriendly and cfg.ESPTracers },
             Origin = 1, 
             Thickness = 1,
-            Transparency = cfg.ESPOpacity
+            Transparency = cfg.ESPOpacity,
+            Color = c
         },
 
-        -- Text Info ESP
         Name = { 
-            Enabled = { enemy = cfg.ESPNames, friendly = false },
-            Style = 1 -- Username
+            Enabled = { enemy = cfg.ESPNames, friendly = showFriendly and cfg.ESPNames },
+            Style = 1,
+            Color = c
         },
         
         Distance = {
-            Enabled = { enemy = cfg.ESPDistances, friendly = false }
+            Enabled = { enemy = cfg.ESPDistances, friendly = showFriendly and cfg.ESPDistances },
+            Color = c
         },
 
-        -- Health Bar
         HealthBar = { 
-            Enabled = { enemy = cfg.ESPHealthBar, friendly = false },
+            Enabled = { enemy = cfg.ESPHealthBar, friendly = showFriendly and cfg.ESPHealthBar },
             Bar = true,
             Text = true
         }
@@ -124,7 +150,7 @@ end
 -- ==========================================
 function VisualsModule.ToggleESP(state)
     getgenv().AiriConfig.ESPEnabled = state
-    VisualsModule.UpdateAll() -- Menggunakan UpdateAll() agar ESP library me-refresh setting secara menyeluruh
+    VisualsModule.UpdateAll()
 end
 
 function VisualsModule.SetBox(state, style)
@@ -168,6 +194,11 @@ function VisualsModule.Unload()
         pcall(function() Twilight:Unload() end)
         Twilight = nil
     end
+    
+    for _, conn in ipairs(Connections) do
+        if conn.Connected then conn:Disconnect() end
+    end
+    table.clear(Connections)
 end
 
 return VisualsModule
