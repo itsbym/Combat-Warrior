@@ -81,10 +81,9 @@ function AntiDetect.Init()
                     if type(remoteName) == "string" and (remoteName == "LogKick" or remoteName == "LogACTrigger") then 
                         return nil 
                     end
-                    -- Tambahan: Blokir jika remote ada di folder Communication
-                    -- DIBUNGKUS DENGAN pcall KARENA MENGAKSES PROPERTI DARI INSTANCE YANG BISA SAJA DESTROYED AKAN BIKIN CRASH!
-                    local s_name, name = pcall(function() return self.Name end)
-                    if s_name and (name == "LogKick" or name == "LogACTrigger") then
+                    -- Gunakan self.Name secara langsung, executor modern akan melempar Lua Error (yang tertangkap/diabaikan di hook) 
+                    -- HINDARI membuat function() di dalam namecall loop.
+                    if self.Name == "LogKick" or self.Name == "LogACTrigger" then
                         return nil
                     end
                 end
