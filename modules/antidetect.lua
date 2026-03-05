@@ -99,9 +99,14 @@ function AntiDetect.Init()
                     end
                 end
 
-                -- BodyMover Integrity (HasTag Spoof)
+                -- Pengecekan Instance secara aman tanpa membuat fungsi anonim di hot-loop (mencegah memory leak / CTD)
+                local isSafe, isBodyMover = pcall(game.IsA, self, "BodyMover")
+                
+                -- BodyMover Integrity (HasTag Spoof) khusus untuk BodyMover
                 if method == "HasTag" and args[1] == BODY_MOVER_TAG then
-                    return true
+                    if isSafe and isBodyMover then
+                        return true
+                    end
                 end
                 
                 -- Attribute Spoof & BodyMover protection
@@ -119,11 +124,11 @@ function AntiDetect.Init()
                                 if attr == "IsDashing" then return false end
                             end
                         end
-                        -- Spoof Lifetime attribute for BodyMovers
-                        -- Murni cek string atribut. Jangan pernah panggil fungsi obyek 
-                        -- dari dalam hook __namecall karena akan bikin Register Corruption atau CTD!
+                        -- Spoof Lifetime attribute HANYA untuk BodyMovers (Mencegah C++ Engine Crash karena tipe salah di sistem partikel jw dll)
                         if attr == "Lifetime" then
-                            return 5
+                            if isSafe and isBodyMover then
+                                return 5
+                            end
                         end
                     end
                 end
