@@ -82,7 +82,9 @@ function AntiDetect.Init()
                         return nil 
                     end
                     -- Tambahan: Blokir jika remote ada di folder Communication
-                    if self.Name == "LogKick" or self.Name == "LogACTrigger" then
+                    -- DIBUNGKUS DENGAN pcall KARENA MENGAKSES PROPERTI DARI INSTANCE YANG BISA SAJA DESTROYED AKAN BIKIN CRASH!
+                    local s_name, name = pcall(function() return self.Name end)
+                    if s_name and (name == "LogKick" or name == "LogACTrigger") then
                         return nil
                     end
                 end
@@ -108,7 +110,7 @@ function AntiDetect.Init()
                             end
                         end
                         -- Spoof Lifetime attribute for BodyMovers
-                        -- Murni cek string atribut. Jangan pernah panggil :IsA() atau fungsi obyek 
+                        -- Murni cek string atribut. Jangan pernah panggil fungsi obyek 
                         -- dari dalam hook __namecall karena akan bikin Register Corruption atau CTD!
                         if attr == "Lifetime" then
                             return 5
