@@ -79,7 +79,6 @@ function AntiDetect.Init()
         local OldNamecall
         OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
             local method = getnamecallmethod()
-            local args = {...}
 
             if not checkcaller() and typeof(self) == "Instance" then
                 -- Agresif Kick/Destroy Protection
@@ -88,7 +87,7 @@ function AntiDetect.Init()
 
                 -- Blokir direct logging via FireServer remote
                 if method == "FireServer" then
-                    local remoteName = args[1]
+                    local remoteName = select(1, ...)
                     if type(remoteName) == "string" and (remoteName == "LogKick" or remoteName == "LogACTrigger") then 
                         return nil 
                     end
@@ -103,15 +102,16 @@ function AntiDetect.Init()
                 local isSafe, isBodyMover = pcall(game.IsA, self, "BodyMover")
                 
                 -- BodyMover Integrity (HasTag Spoof) khusus untuk BodyMover
-                if method == "HasTag" and args[1] == BODY_MOVER_TAG then
-                    if isSafe and isBodyMover then
+                if method == "HasTag" then
+                    local tag = select(1, ...)
+                    if tag == BODY_MOVER_TAG and isSafe and isBodyMover then
                         return true
                     end
                 end
                 
                 -- Attribute Spoof & BodyMover protection
                 if method == "GetAttribute" then
-                    local attr = args[1]
+                    local attr = select(1, ...)
                     if type(attr) == "string" then
                         local Config = getgenv().AiriConfig
                         if Config then
