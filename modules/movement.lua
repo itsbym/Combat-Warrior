@@ -1,4 +1,4 @@
-﻿--[[
+--[[
     Moonnight Hub - Movement Module V4.0 (Absolute Source Accurate)
     Target: Combat Warriors 2026
     Focus: Source-accurate module hooking for Jump, Dash, Ragdoll, and Stamina.

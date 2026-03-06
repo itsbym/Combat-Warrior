@@ -1,4 +1,4 @@
-﻿--[[
+--[[
     Moonnight Hub - Combat Module V4.0 (HYDRA-REFERENCE OVERHAUL)
     Target: Combat Warriors
     Features: Hitbox Expander, Aimbot, Auto Parry (Anti-Feint), Anti Parry (CharacterUtil Hook)

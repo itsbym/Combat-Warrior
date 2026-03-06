@@ -1,4 +1,4 @@
-﻿--[[
+--[[
     Moonnight Hub - Visuals (ESP) Module
     Target: Combat Warriors (FFA Focus)
     Engine: Twilight ESP (Integrated via Nebula-Softworks)
