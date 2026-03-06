@@ -21,13 +21,18 @@ getgenv().AiriConfig = getgenv().AiriConfig or {
     AutoParryWhitelistTeam = "", AutoParryBlacklistTeam = "",
     AutoParryMode = "Toggle", AutoParryToggleKeybind = "None",
     AutoParryDetection = "Both", AutoParryChance = 100,
+    AutoParryThreshold = 0.15,  -- seconds before startHitDetection marker to trigger parry (anti-feint window)
     AutoEquip = false, AutoEquipDelay = 0,
+
+    -- ANTI-FEINT
+    AntiFeint = true,   -- if true, auto-parry only fires near the startHitDetection marker (ignores feints)
 
     -- NO DELAY / STAMINA
     NoJumpDelay = false, NoDodgeDelay = false, InfStamina = false, NoFallDamage = true, AntiRagdoll = false,
 
-    -- ANTI PARRY
-    AntiParryEnabled = false, AntiParryMode = "Toggle", AntiParryToggleKeybind = "None",
+    -- ANTI PARRY (CharacterUtil hook – bypasses enemy parry shields)
+    AntiParryEnabled = false, AntiParry = false,  -- AntiParry = internal hook state
+    AntiParryMode = "Toggle", AntiParryToggleKeybind = "None",
 
     -- HITBOX EXPANDER
     HitboxExpander = false, HitboxExpanderKeybind = "None", HitboxExpanderSize = 5,
@@ -212,7 +217,14 @@ end)
 -----------------------------------------
 Tabs.Combat:CreateSection("Auto Parry Settings")
 Tabs.Combat:CreateToggle({ Name = "Enable Auto Parry", CurrentValue = Config.AutoParry, Flag = "AutoParryToggle", Callback = function(s) Config.AutoParry = s end })
-Tabs.Combat:CreateSlider({ Name = "Parry Delay", Range = {0.1, 1}, Increment = 0.1, CurrentValue = Config.AutoParryDelay, Flag = "AutoParryDelay", Callback = function(v) Config.AutoParryDelay = v end })
+Tabs.Combat:CreateToggle({
+    Name = "Anti-Feint Mode",
+    CurrentValue = Config.AntiFeint,
+    Flag = "AntiFeintTog",
+    Callback = function(s) Config.AntiFeint = s end
+})
+Tabs.Combat:CreateSlider({ Name = "Feint Threshold (s)", Range = {0.05, 0.5}, Increment = 0.01, CurrentValue = Config.AutoParryThreshold, Flag = "AutoParryThresh", Callback = function(v) Config.AutoParryThreshold = v end })
+Tabs.Combat:CreateSlider({ Name = "Parry Delay", Range = {0, 1}, Increment = 0.05, CurrentValue = Config.AutoParryDelay, Flag = "AutoParryDelay", Callback = function(v) Config.AutoParryDelay = v end })
 Tabs.Combat:CreateKeybind({ Name = "Parry Toggle Keybind", CurrentKeybind = Config.AutoParryToggleKeybind, HoldToInteract = false, Flag = "AutoParryBind", Callback = function(k) if type(k)=="userdata" then Config.AutoParryToggleKeybind = (k.Name=="Escape") and "None" or tostring(k.Name) end end })
 Tabs.Combat:CreateSlider({ Name = "Parry Range", Range = {5, 50}, Increment = 1, CurrentValue = Config.AutoParryRange, Flag = "AutoParryRange", Callback = function(v) Config.AutoParryRange = v end })
 Tabs.Combat:CreateSlider({ Name = "Parry FOV", Range = {10, 360}, Increment = 5, CurrentValue = Config.AutoParryFOV, Flag = "AutoParryFOV", Callback = function(v) Config.AutoParryFOV = v end })
@@ -221,15 +233,17 @@ Tabs.Combat:CreateInput({ Name = "Whitelist Player", PlaceholderText = "Username
 Tabs.Combat:CreateInput({ Name = "Blacklist Player", PlaceholderText = "Username...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.AutoParryBlacklistPlayer = t end })
 Tabs.Combat:CreateInput({ Name = "Whitelist Team", PlaceholderText = "Team Name...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.AutoParryWhitelistTeam = t end })
 Tabs.Combat:CreateInput({ Name = "Blacklist Team", PlaceholderText = "Team Name...", RemoveTextAfterFocusLost = false, Callback = function(t) Config.AutoParryBlacklistTeam = t end })
-pcall(function() Tabs.Combat:CreateDropdown({ Name = "Parry Mode", Options = {"Hold", "Toggle", "Trigger"}, Flag = "AutoParryMode", Callback = function(o) Config.AutoParryMode = type(o)=="table" and o[1] or o end }) end)
+pcall(function() Tabs.Combat:CreateDropdown({ Name = "Keybind Mode", Options = {"Hold", "Toggle", "Trigger"}, Flag = "AutoParryMode", Callback = function(o) Config.AutoParryMode = type(o)=="table" and o[1] or o end }) end)
 pcall(function() Tabs.Combat:CreateDropdown({ Name = "Detection Method", Options = {"Animation", "Sound", "Both"}, Flag = "AutoParryDetect", Callback = function(o) Config.AutoParryDetection = type(o)=="table" and o[1] or o end }) end)
 Tabs.Combat:CreateSlider({ Name = "Parry Chance (%)", Range = {1, 100}, Increment = 1, CurrentValue = Config.AutoParryChance, Flag = "AutoParryChance", Callback = function(v) Config.AutoParryChance = v end })
 Tabs.Combat:CreateToggle({ Name = "Auto Equip Weapon", CurrentValue = Config.AutoEquip, Flag = "AutoEquipTog", Callback = function(s) Config.AutoEquip = s end })
 Tabs.Combat:CreateSlider({ Name = "Auto Equip Delay", Range = {0, 2}, Increment = 0.1, CurrentValue = Config.AutoEquipDelay, Flag = "AutoEquipDelay", Callback = function(v) Config.AutoEquipDelay = v end })
 
-Tabs.Combat:CreateSection("Anti Parry")
-Tabs.Combat:CreateToggle({ Name = "Enable Anti Parry", CurrentValue = Config.AntiParryEnabled, Flag = "AntiParryTog", Callback = function(s) Config.AntiParryEnabled = s end })
-pcall(function() Tabs.Combat:CreateDropdown({ Name = "Anti Parry Mode", Options = {"Hold", "Toggle"}, Flag = "AntiParryMode", Callback = function(o) Config.AntiParryMode = type(o)=="table" and o[1] or o end }) end)
+Tabs.Combat:CreateSection("Anti Parry (Bypass Enemy Parry Shield)")
+Tabs.Combat:CreateToggle({ Name = "Enable Anti Parry", CurrentValue = Config.AntiParryEnabled, Flag = "AntiParryTog", Callback = function(s)
+    Config.AntiParryEnabled = s
+    Config.AntiParry = s  -- sync internal hook state
+end })
 Tabs.Combat:CreateKeybind({ Name = "Anti Parry Keybind", CurrentKeybind = Config.AntiParryToggleKeybind, HoldToInteract = false, Flag = "AntiParryBind", Callback = function(k) if type(k)=="userdata" then Config.AntiParryToggleKeybind = (k.Name=="Escape") and "None" or tostring(k.Name) end end })
 
 Tabs.Combat:CreateSection("No Delay & Movement")
