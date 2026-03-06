@@ -92,9 +92,12 @@ end
 -- ANIMATION MARKER SCRAPER
 -- ==========================================
 local _markerCache = {}
+local _failedAnimCache = {}  -- Cache anim ID yang gagal (sanitized/restricted), hindari re-request
 
 local function getAnimMarkers(animId)
     if _markerCache[animId] then return _markerCache[animId] end
+    -- Skip animasi yang sebelumnya sudah gagal (restricted by Roblox)
+    if _failedAnimCache[animId] then return {} end
 
     local markers = {}
     local ok, ks = pcall(function()
@@ -120,6 +123,9 @@ local function getAnimMarkers(animId)
         end
         recurse(ks)
         _markerCache[animId] = markers
+    else
+        -- Gagal load (sanitized ID atau network error) — cache supaya tidak spam
+        _failedAnimCache[animId] = true
     end
 
     return markers
