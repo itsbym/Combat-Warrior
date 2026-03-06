@@ -1,4 +1,4 @@
-﻿--[[
+--[[
     Moonnight Hub V3 - Anti-Detect (Total Shutdown - STABLE)
     Target: Combat Warriors 2026
 ]]
