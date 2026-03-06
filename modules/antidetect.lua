@@ -1,5 +1,5 @@
---[[
-    Airi Hub V3 - Anti-Detect (Total Shutdown - STABLE)
+﻿--[[
+    Moonnight Hub V3 - Anti-Detect (Total Shutdown - STABLE)
     Target: Combat Warriors 2026
 ]]
 
@@ -15,11 +15,11 @@ local RAGDOLL_FALSE = {["IsRagdolledServer"] = true, ["IsRagdolledClient"] = tru
 local RAGDOLL_TRUE = {["RagdollDisabledClient"] = true, ["RagdollDisabledServer"] = true}
 
 -- Storage for hooks to avoid conflicts
-getgenv()._AiriNetworkHookDone = getgenv()._AiriNetworkHookDone or false
-getgenv()._AiriMetamethodHookDone = getgenv()._AiriMetamethodHookDone or false
+getgenv()._MoonnightNetworkHookDone = getgenv()._MoonnightNetworkHookDone or false
+getgenv()._MoonnightMetamethodHookDone = getgenv()._MoonnightMetamethodHookDone or false
 
 function AntiDetect.Init()
-    print("[Airi Hub] Anti-Detect V3 (Modern) initializing...")
+    print("[Moonnight Hub] Anti-Detect V3 (Modern) initializing...")
 
     -- ===========================================
     -- 1. REQUIRE INTERNAL MODULES (Game Accurate)
@@ -42,11 +42,11 @@ function AntiDetect.Init()
     end)
     
     if flagSuccess and type(flagResult) == "table" then
-        if not getgenv()._AiriFlagHookDone then
+        if not getgenv()._MoonnightFlagHookDone then
             -- Replace getIsMaxed so it always returns false/nil
             -- This means no matter how many flags the AC gives us, we are never "maxed" or punished!
             flagResult.getIsMaxed = function() return false end
-            getgenv()._AiriFlagHookDone = true
+            getgenv()._MoonnightFlagHookDone = true
         end
     end
     
@@ -56,7 +56,7 @@ function AntiDetect.Init()
     -- We do NOT use hookmetamethod("__namecall") because it runs thousands of times per frame 
     -- and completely freezes the client (CPU 100% deadlock with pcalls).
     -- Instead, we simply hook the game's internal Network module directly!
-    if Network and type(Network.FireServer) == "function" and not getgenv()._AiriNetworkHookDone then
+    if Network and type(Network.FireServer) == "function" and not getgenv()._MoonnightNetworkHookDone then
         local originalFireServer = Network.FireServer
         
         Network.FireServer = function(self, remoteName, ...)
@@ -71,7 +71,7 @@ function AntiDetect.Init()
                     return nil
                 end
 
-                local Config = getgenv().AiriConfig
+                local Config = getgenv().MoonnightConfig
                 if Config and Config.NoFallDamage and (remoteName == "TakeFallDamage" or remoteName == "StartFallDamage") then
                     return nil
                 end
@@ -80,10 +80,10 @@ function AntiDetect.Init()
             -- Pass through normally
             return originalFireServer(self, remoteName, ...)
         end
-        getgenv()._AiriNetworkHookDone = true
+        getgenv()._MoonnightNetworkHookDone = true
     end
 
-    print("[Airi Hub] AntiDetect V6 (Ultimate Stability) INITIALIZED =====================")
+    print("[Moonnight Hub] AntiDetect V6 (Ultimate Stability) INITIALIZED =====================")
 end
 
 function AntiDetect.Unload()

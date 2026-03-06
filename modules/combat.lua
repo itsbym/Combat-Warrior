@@ -1,11 +1,11 @@
---[[
-    Airi Hub - Combat Module V4.0 (HYDRA-REFERENCE OVERHAUL)
+﻿--[[
+    Moonnight Hub - Combat Module V4.0 (HYDRA-REFERENCE OVERHAUL)
     Target: Combat Warriors
     Features: Hitbox Expander, Aimbot, Auto Parry (Anti-Feint), Anti Parry (CharacterUtil Hook)
     
-    Anti-Parry  → Hooks CharacterUtil.getIsHittableCharacterPart (Nevermore) so enemy parry
+    Anti-Parry  â†’ Hooks CharacterUtil.getIsHittableCharacterPart (Nevermore) so enemy parry
                   shields don't block our hits.
-    Anti-Feint  → Auto-parry ONLY triggers when enemy anim passes startHitDetection marker,
+    Anti-Feint  â†’ Auto-parry ONLY triggers when enemy anim passes startHitDetection marker,
                   so we never get baited by feints.
 ]]
 
@@ -83,7 +83,7 @@ local function tryLoadNevermore()
     end)
     NevermoreLoaded = ok
     if not ok then
-        warn("[Airi Hub] Nevermore load failed — anti-parry hook unavailable")
+        warn("[Moonnight Hub] Nevermore load failed â€” anti-parry hook unavailable")
     end
     return ok
 end
@@ -134,7 +134,7 @@ local function simulateParry()
     if parryDebounce then return end
     parryDebounce = true
 
-    local Config = getgenv().AiriConfig
+    local Config = getgenv().MoonnightConfig
     local holdTime = Config and Config.AutoParryDelay or 0.12
 
     -- Try Network:FireServer("Parry") first if available
@@ -192,13 +192,13 @@ local function hookAntiParry()
     if not NevermoreLoaded then return end
     local charUtil = NevermoreModules["CharacterUtil"]
     if not charUtil or not charUtil.getIsHittableCharacterPart then
-        warn("[Airi Hub] CharacterUtil.getIsHittableCharacterPart not found")
+        warn("[Moonnight Hub] CharacterUtil.getIsHittableCharacterPart not found")
         return
     end
 
     _oldHittable = charUtil.getIsHittableCharacterPart
     charUtil.getIsHittableCharacterPart = function(part, unused)
-        local Config = getgenv().AiriConfig
+        local Config = getgenv().MoonnightConfig
         if Config and Config.AntiParryEnabled and Config.AntiParry then
             -- Hydra's Anti-Parry logic:
             -- ONLY valid enemy character models are "hittable".
@@ -214,7 +214,7 @@ local function hookAntiParry()
     end
 
     antiParryHooked = true
-    print("[Airi Hub] Anti-Parry hook active (CharacterUtil)")
+    print("[Moonnight Hub] Anti-Parry hook active (CharacterUtil)")
 end
 
 local function unhookAntiParry()
@@ -227,6 +227,85 @@ local function unhookAntiParry()
 end
 
 -- ==========================================
+-- AUTO-UNEQUIP ENGINE (Anti-Feint / Parry Detect)
+-- Automatically unequips local weapon when enemy parries
+-- to avoid hitting shield.
+-- ==========================================
+local autoUnequipHooked = false
+local _oldPlaySound = nil
+
+local function hookAutoUnequip()
+    if autoUnequipHooked then return end
+    local soundHandler = NevermoreModules["SoundHandler"]
+    if not soundHandler then return end
+
+    if not _oldPlaySound then
+        _oldPlaySound = soundHandler.playSound
+    end
+
+    soundHandler.playSound = function(sound)
+        local Config = getgenv().MoonnightConfig
+        if Config and Config.AntiFeint then
+            if sound and sound.soundObject and sound.soundObject.Name == "Parry" and typeof(sound.parent) == "Instance" then
+                local parryShield = sound.parent:FindFirstAncestorOfClass("Model")
+                local enemyChar = parryShield and parryShield.Parent
+
+                local localChar = getLocalCharacter()
+                if enemyChar and localChar and enemyChar ~= localChar then
+                    local localRoot = localChar:FindFirstChild("HumanoidRootPart")
+                    local enemyRoot = enemyChar:FindFirstChild("HumanoidRootPart")
+                    
+                    if localRoot and enemyRoot then
+                        local dist = (localRoot.Position - enemyRoot.Position).Magnitude
+                        -- Only unequip if enemy is relatively close
+                        if dist <= 30 then
+                            local humanoid = localChar:FindFirstChild("Humanoid")
+                            if humanoid then
+                                humanoid:UnequipTools()
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return _oldPlaySound(sound)
+    end
+    
+    autoUnequipHooked = true
+    print("[Moonnight Hub] Auto-Unequip Sound Hook active")
+    
+    local pc = getPlayerCharacters()
+    if pc then
+        -- This covers the "maupun part" detection
+        local conn = pc.DescendantAdded:Connect(function(descendant)
+            local Config = getgenv().MoonnightConfig
+            if Config and Config.AntiFeint then
+                if descendant:IsA("Model") and descendant:GetAttribute("ParryShieldId") then
+                    local enemyChar = descendant.Parent
+                    local localChar = getLocalCharacter()
+                    
+                    if enemyChar and localChar and enemyChar ~= localChar then
+                        local localRoot = localChar:FindFirstChild("HumanoidRootPart")
+                        local enemyRoot = enemyChar:FindFirstChild("HumanoidRootPart")
+                        
+                        if localRoot and enemyRoot then
+                            local dist = (localRoot.Position - enemyRoot.Position).Magnitude
+                            if dist <= 30 then
+                                local humanoid = localChar:FindFirstChild("Humanoid")
+                                if humanoid then
+                                    humanoid:UnequipTools()
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+        table.insert(Connections, conn)
+    end
+end
+
+-- ==========================================
 -- AUTO-PARRY ENGINE (Anti-Feint aware)
 --
 -- Monitors every enemy animator every frame.
@@ -236,12 +315,12 @@ end
 --      only trigger parry when anim.TimePosition
 --      reaches (marker - threshold) AND hasn't
 --      passed marker yet.
---   3. This naturally ignores feints — if enemy
+--   3. This naturally ignores feints â€” if enemy
 --      cancels the anim before the marker, we
 --      never parry.
 -- ==========================================
 local HumanoidToParry = {}
-local _parryTracked = {}  -- animTrack → last triggered state
+local _parryTracked = {}  -- animTrack â†’ last triggered state
 
 local function trackEnemy(char)
     if char.Name == LocalPlayer.Name then return end
@@ -265,7 +344,7 @@ end
 
 -- Called every RenderStepped when AutoParry is enabled
 local function updateAutoParry()
-    local Config = getgenv().AiriConfig
+    local Config = getgenv().MoonnightConfig
     if not Config or not Config.AutoParry then return end
 
     local localChar = getLocalCharacter()
@@ -326,7 +405,7 @@ local function updateAutoParry()
                 end
             else
                 -- Fallback: no marker found, use name-based detection
-                -- (less accurate — fooled by feints; still better than nothing)
+                -- (less accurate â€” fooled by feints; still better than nothing)
                 local animName = animId:lower()
                 local animLabel = track.Animation.Name:lower()
                 local isAttack = animLabel:find("slash") or animLabel:find("swing")
@@ -379,7 +458,7 @@ end
 
 local function handleAutoEquip()
     if autoEquipDebounce then return end
-    local Config = getgenv().AiriConfig
+    local Config = getgenv().MoonnightConfig
     if not Config or not Config.AutoEquip then return end
 
     local localChar = LocalPlayer.Character
@@ -393,7 +472,7 @@ local function handleAutoEquip()
     local backpack = LocalPlayer:FindFirstChild("Backpack")
     if not backpack then return end
 
-    -- Priority: prefer melee (Hitboxes) → ranged → any weapon attribute
+    -- Priority: prefer melee (Hitboxes) â†’ ranged â†’ any weapon attribute
     local preferred = nil
     for _, tool in ipairs(backpack:GetChildren()) do
         if isCombatWeapon(tool) then
@@ -430,7 +509,7 @@ end
 -- AIMBOT ENGINE
 -- ==========================================
 local function getClosestForAimbot()
-    local Config = getgenv().AiriConfig
+    local Config = getgenv().MoonnightConfig
     if not Config then return nil end
 
     local closestChar = nil
@@ -465,7 +544,7 @@ local hue = 0
 local OriginalSizes = {}
 
 local function ApplyHitboxExtender(deltaTime)
-    local Config = getgenv().AiriConfig
+    local Config = getgenv().MoonnightConfig
     if not Config then return end
 
     local pc = getPlayerCharacters()
@@ -532,20 +611,21 @@ end
 -- MAIN INIT
 -- ==========================================
 function CombatModule.Init()
-    print("[Airi Hub] Combat V4.0 initializing...")
+    print("[Moonnight Hub] Combat V4.0 initializing...")
 
     -- 1. Try loading Nevermore for internal hooks
     task.spawn(function()
         local ok = tryLoadNevermore()
         if ok then
             hookAntiParry()
+            hookAutoUnequip()
         end
     end)
 
     -- 2. Build initial humanoid-to-parry list
     local pc = getPlayerCharacters()
     if not pc then
-        warn("[Airi Hub] Combat: PlayerCharacters not found")
+        warn("[Moonnight Hub] Combat: PlayerCharacters not found")
         return
     end
 
@@ -570,7 +650,7 @@ function CombatModule.Init()
 
     -- 4. Main render loop
     local renderConn = RunService.RenderStepped:Connect(function(dt)
-        local Config = getgenv().AiriConfig
+        local Config = getgenv().MoonnightConfig
 
         -- Hitbox expander
         pcall(ApplyHitboxExtender, dt)
@@ -622,7 +702,7 @@ function CombatModule.Init()
     end)
     table.insert(Connections, renderConn)
 
-    print("[Airi Hub] Combat V4.0 ACTIVE.")
+    print("[Moonnight Hub] Combat V4.0 ACTIVE.")
 end
 
 function CombatModule:Unload()

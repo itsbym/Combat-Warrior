@@ -1,5 +1,5 @@
---[[
-    Airi Hub - Visuals (ESP) Module
+﻿--[[
+    Moonnight Hub - Visuals (ESP) Module
     Target: Combat Warriors (FFA Focus)
     Engine: Twilight ESP (Integrated via Nebula-Softworks)
 ]]
@@ -9,7 +9,7 @@ local VisualsModule = {}
 local Connections = {}
 
 -- Global Config Initializer (Fallback)
-getgenv().AiriConfig = getgenv().AiriConfig or {
+getgenv().MoonnightConfig = getgenv().MoonnightConfig or {
     ESPEnabled = false,
     ESPOpacity = 1,
     ESPBox = true,
@@ -47,12 +47,12 @@ function VisualsModule.Init()
 
     if success and result then
         Twilight = result
-        print("[Airi Hub] Twilight ESP Engine Loaded Successfully.")
+        print("[Moonnight Hub] Twilight ESP Engine Loaded Successfully.")
         VisualsModule.UpdateAll()
         
         -- Rainbow Engine Loop
         local renderConn = RunService.RenderStepped:Connect(function(deltaTime)
-            local cfg = getgenv().AiriConfig
+            local cfg = getgenv().MoonnightConfig
             if Twilight and cfg.ESPEnabled and cfg.ESPColorMode == "Rainbow" then
                 hue = hue + (deltaTime * cfg.ESPRainbowSpeed * 0.1)
                 if hue >= 1 then hue = 0 end
@@ -70,7 +70,7 @@ function VisualsModule.Init()
         end)
         table.insert(Connections, renderConn)
     else
-        warn("[Airi Hub] Failed to load Twilight ESP: " .. tostring(result))
+        warn("[Moonnight Hub] Failed to load Twilight ESP: " .. tostring(result))
     end
 end
 
@@ -80,7 +80,7 @@ end
 function VisualsModule.UpdateAll()
     if not Twilight then return end
 
-    local cfg = getgenv().AiriConfig
+    local cfg = getgenv().MoonnightConfig
     
     local showFriendly = not cfg.ESPTeamCheck
     
@@ -149,40 +149,40 @@ end
 -- 3. DYNAMIC TOGGLES (For UI Connections)
 -- ==========================================
 function VisualsModule.ToggleESP(state)
-    getgenv().AiriConfig.ESPEnabled = state
+    getgenv().MoonnightConfig.ESPEnabled = state
     VisualsModule.UpdateAll()
 end
 
 function VisualsModule.SetBox(state, style)
-    getgenv().AiriConfig.ESPBox = state
-    if style then getgenv().AiriConfig.ESPBoxStyle = style end
+    getgenv().MoonnightConfig.ESPBox = state
+    if style then getgenv().MoonnightConfig.ESPBoxStyle = style end
     VisualsModule.UpdateAll()
 end
 
 function VisualsModule.SetChams(state)
-    getgenv().AiriConfig.ESPChams = state
+    getgenv().MoonnightConfig.ESPChams = state
     VisualsModule.UpdateAll()
 end
 
 function VisualsModule.SetSkeleton(state)
-    getgenv().AiriConfig.ESPSkeleton = state
+    getgenv().MoonnightConfig.ESPSkeleton = state
     VisualsModule.UpdateAll()
 end
 
 function VisualsModule.SetTracers(state)
-    getgenv().AiriConfig.ESPTracers = state
+    getgenv().MoonnightConfig.ESPTracers = state
     VisualsModule.UpdateAll()
 end
 
 function VisualsModule.SetInfo(names, distances, healthbar)
-    getgenv().AiriConfig.ESPNames = names
-    getgenv().AiriConfig.ESPDistances = distances
-    getgenv().AiriConfig.ESPHealthBar = healthbar
+    getgenv().MoonnightConfig.ESPNames = names
+    getgenv().MoonnightConfig.ESPDistances = distances
+    getgenv().MoonnightConfig.ESPHealthBar = healthbar
     VisualsModule.UpdateAll()
 end
 
 function VisualsModule.SetOpacity(value)
-    getgenv().AiriConfig.ESPOpacity = math.clamp(value, 0, 1)
+    getgenv().MoonnightConfig.ESPOpacity = math.clamp(value, 0, 1)
     VisualsModule.UpdateAll()
 end
 

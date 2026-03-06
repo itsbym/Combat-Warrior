@@ -1,5 +1,5 @@
---[[
-    Airi Hub - Movement Module V4.0 (Absolute Source Accurate)
+﻿--[[
+    Moonnight Hub - Movement Module V4.0 (Absolute Source Accurate)
     Target: Combat Warriors 2026
     Focus: Source-accurate module hooking for Jump, Dash, Ragdoll, and Stamina.
     Zero getgc loops used.
@@ -25,7 +25,7 @@ local JumpConstants, DashConstants, RagdollHandler, DefaultStaminaHandler
 -- MAIN INITIALIZATION
 -- ==========================================
 function MovementModule.Init()
-    print("[Airi Hub] Movement V4.0 (Absolute Source Accurate) initializing...")
+    print("[Moonnight Hub] Movement V4.0 (Absolute Source Accurate) initializing...")
 
     -- 1. LOAD GAME MODULES VIA REQUIRE
     local successJump, resJump = pcall(function() return require(ReplicatedStorage.Shared.Source.Jump.JumpConstants) end)
@@ -44,13 +44,13 @@ function MovementModule.Init()
     -- A) Jump Cooldown
     if JumpConstants and JumpConstants.JUMP_DELAY_ADD ~= nil then
         OriginalConstants.JumpDelay = JumpConstants.JUMP_DELAY_ADD
-        print("[Airi Hub] JumpConstants Hooked.")
+        print("[Moonnight Hub] JumpConstants Hooked.")
     end
 
     -- B) Dash Cooldown
     if DashConstants and DashConstants.DASH_COOLDOWN ~= nil then
         OriginalConstants.DashCooldown = DashConstants.DASH_COOLDOWN
-        print("[Airi Hub] DashConstants Hooked.")
+        print("[Moonnight Hub] DashConstants Hooked.")
     end
 
     -- C) Anti-Ragdoll Hook
@@ -58,21 +58,21 @@ function MovementModule.Init()
         OriginalConstants.ToggleRagdoll = RagdollHandler.toggleRagdoll
         
         RagdollHandler.toggleRagdoll = function(humanoid, isRagdoll, ...)
-            if getgenv().AiriConfig.AntiRagdoll and isRagdoll then
+            if getgenv().MoonnightConfig.AntiRagdoll and isRagdoll then
                 return -- Blokir Ragdoll
             end
             return OriginalConstants.ToggleRagdoll(humanoid, isRagdoll, ...)
         end
-        print("[Airi Hub] RagdollHandler.toggleRagdoll Hooked.")
+        print("[Moonnight Hub] RagdollHandler.toggleRagdoll Hooked.")
     end
 
     if DefaultStaminaHandler and type(DefaultStaminaHandler.getDefaultStamina) == "function" then
-        print("[Airi Hub] DefaultStaminaHandler Hooked.")
+        print("[Moonnight Hub] DefaultStaminaHandler Hooked.")
     end
 
     -- 3. CONSTANTS ENFORCER (Heartbeat) - NO GETGC
     local heartbeatConn = RunService.Heartbeat:Connect(function()
-        local Config = getgenv().AiriConfig
+        local Config = getgenv().MoonnightConfig
         if not Config then return end
 
         -- A & B: Update Module Constants Dynamically
@@ -96,7 +96,7 @@ function MovementModule.Init()
     end)
     table.insert(Connections, heartbeatConn)
 
-    print("[Airi Hub] Movement V4.0 ACTIVE. GetGC Removed!")
+    print("[Moonnight Hub] Movement V4.0 ACTIVE. GetGC Removed!")
 end
 
 -- ==========================================
@@ -121,7 +121,7 @@ function MovementModule.Unload()
         RagdollHandler.toggleRagdoll = OriginalConstants.ToggleRagdoll
     end
 
-    print("[Airi Hub] Movement V4.0 Unloaded.")
+    print("[Moonnight Hub] Movement V4.0 Unloaded.")
 end
 
 return MovementModule

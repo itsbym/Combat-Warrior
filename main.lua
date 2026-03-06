@@ -1,19 +1,19 @@
--- ================================================================
+﻿-- ================================================================
 -- EXECUTION GUARD (allows re-inject by destroying old UI)
 -- ================================================================
-if getgenv().AiriHubExecuted then
+if getgenv().MoonnightHubExecuted then
     pcall(function()
         for _, v in ipairs(game:GetService("CoreGui"):GetChildren()) do
             if v.Name == "Luna" then v:Destroy() end
         end
     end)
 end
-getgenv().AiriHubExecuted = true
+getgenv().MoonnightHubExecuted = true
 
 -- ================================================================
 -- INIT GLOBAL CONFIG
 -- ================================================================
-getgenv().AiriConfig = getgenv().AiriConfig or {
+getgenv().MoonnightConfig = getgenv().MoonnightConfig or {
     -- PARRY CONFIG
     AutoParry = false, AutoParryDelay = 0.1, AutoParryKeybind = "None",
     AutoParryRange = 15, AutoParryFOV = 100, AutoParryTeamCheck = false,
@@ -30,7 +30,7 @@ getgenv().AiriConfig = getgenv().AiriConfig or {
     -- NO DELAY / STAMINA
     NoJumpDelay = false, NoDodgeDelay = false, InfStamina = false, NoFallDamage = true, AntiRagdoll = false,
 
-    -- ANTI PARRY (CharacterUtil hook – bypasses enemy parry shields)
+    -- ANTI PARRY (CharacterUtil hook â€“ bypasses enemy parry shields)
     AntiParryEnabled = false, AntiParry = false,  -- AntiParry = internal hook state
     AntiParryMode = "Toggle", AntiParryToggleKeybind = "None",
 
@@ -52,9 +52,9 @@ getgenv().AiriConfig = getgenv().AiriConfig or {
     -- GENERAL VISUALS
     ShowFOV = true
 }
-local Config = getgenv().AiriConfig
+local Config = getgenv().MoonnightConfig
 
-print("[Airi Hub] Starting Engine...")
+print("[Moonnight Hub] Starting Engine...")
 
 -- ================================================================
 -- FUNGSI HELPER: Load Module (PRIORITAS: Local > GitHub)
@@ -62,7 +62,7 @@ print("[Airi Hub] Starting Engine...")
 local GITHUB_BASE = "https://raw.githubusercontent.com/itsbym/Combat-Warrior/refs/heads/main/modules/"
 
 local function loadModule(name)
-    print("[Airi Hub] Loading module: " .. name)
+    print("[Moonnight Hub] Loading module: " .. name)
 
     -- STRATEGI 1: File lokal
     if readfile then
@@ -78,7 +78,7 @@ local function loadModule(name)
                     return loadstring(code, "=" .. name)()
                 end)
                 if success and result then
-                    print("[Airi Hub] Loaded '" .. name .. "' from local: " .. path)
+                    print("[Moonnight Hub] Loaded '" .. name .. "' from local: " .. path)
                     return result
                 end
             end
@@ -93,7 +93,7 @@ local function loadModule(name)
             return loadstring(code, "=" .. name)()
         end)
         if success and result then
-            print("[Airi Hub] Loaded '" .. name .. "' from GitHub.")
+            print("[Moonnight Hub] Loaded '" .. name .. "' from GitHub.")
             return result
         end
     end
@@ -102,31 +102,31 @@ local function loadModule(name)
     if name == "visual" then return loadModule("visuals") end
     if name == "visuals" then return loadModule("visual") end
 
-    warn("[Airi Hub] FAILED to load module: " .. name)
+    warn("[Moonnight Hub] FAILED to load module: " .. name)
     return nil
 end
 
 -- ================================================================
 -- PHASE 1: LOAD & INIT ANTI-DETECT - SINKRON, PRIORITAS TERTINGGI
 -- ================================================================
-print("[Airi Hub] [PHASE 1] Loading AntiDetect (synchronous, priority)...")
+print("[Moonnight Hub] [PHASE 1] Loading AntiDetect (synchronous, priority)...")
 local AntiDetectModule = loadModule("antidetect")
 if AntiDetectModule and AntiDetectModule.Init then
     local ok, err = pcall(AntiDetectModule.Init)
     if ok then
-        print("[Airi Hub] [PHASE 1] AntiDetect ACTIVE (V3 Stable).")
+        print("[Moonnight Hub] [PHASE 1] AntiDetect ACTIVE (V3 Stable).")
     else
-        warn("[Airi Hub] [PHASE 1] AntiDetect.Init() error: " .. tostring(err))
+        warn("[Moonnight Hub] [PHASE 1] AntiDetect.Init() error: " .. tostring(err))
     end
 else
-    warn("[Airi Hub] [PHASE 1] AntiDetect module GAGAL di-load!")
+    warn("[Moonnight Hub] [PHASE 1] AntiDetect module GAGAL di-load!")
 end
 
 -- ================================================================
 -- PHASE 2: LOAD LUNA UI
 -- ================================================================
 local function fetchLuna()
-    print("[Airi Hub] DEBUG: Attempting to load Luna UI...")
+    print("[Moonnight Hub] DEBUG: Attempting to load Luna UI...")
     
     local ok, localCode = pcall(readfile, "LUNA-LIB-UI/source.lua")
     if ok and type(localCode) == "string" and #localCode > 0 then
@@ -134,7 +134,7 @@ local function fetchLuna()
         if success and type(luaObj) == "function" then
             local result = luaObj()
             if type(result) == "table" then
-                print("[Airi Hub] SUCCESS: Loaded Luna from local file!")
+                print("[Moonnight Hub] SUCCESS: Loaded Luna from local file!")
                 return true, result
             end
         end
@@ -152,7 +152,7 @@ local function fetchLuna()
             if success and type(luaObj) == "function" then
                 local result = luaObj()
                 if type(result) == "table" then
-                    print("[Airi Hub] SUCCESS: Loaded Luna from GitHub!")
+                    print("[Moonnight Hub] SUCCESS: Loaded Luna from GitHub!")
                     return true, result
                 end
             end
@@ -162,26 +162,26 @@ local function fetchLuna()
     return false, "semua sumber gagal dimuat"
 end
 
-print("[Airi Hub] [PHASE 2] Fetching Luna UI...")
+print("[Moonnight Hub] [PHASE 2] Fetching Luna UI...")
 local successUI, Luna = fetchLuna()
 if not successUI or type(Luna) ~= "table" then
-    warn("[Airi Hub] UI gagal dimuat! Error: " .. tostring(Luna))
+    warn("[Moonnight Hub] UI gagal dimuat! Error: " .. tostring(Luna))
     return
 end
 
 local Window = Luna:CreateWindow({
-    Name = "Combat Warriors | Airi Hub",
-    Subtitle = "Airi Script",
+    Name = "Combat Warriors | Moonnight Hub",
+    Subtitle = "Moonnight Script",
     LogoID = "6031097225",
     LoadingEnabled = true,
-    LoadingTitle = "Airi Hub Interface",
+    LoadingTitle = "Moonnight Hub Interface",
     LoadingSubtitle = "Loading Modules...",
     KeySystem = false,
     Color = Color3.fromRGB(191, 64, 191)
 })
 
 if not Window then
-    warn("[Airi Hub] Gagal membuat jendela UI")
+    warn("[Moonnight Hub] Gagal membuat jendela UI")
     return
 end
 
@@ -199,7 +199,7 @@ Tabs.Settings = Window:CreateTab({ Name = "Settings", Icon = "archive", ShowTitl
 local CombatModule, MovementModule, VisualsModule
 
 task.spawn(function()
-    print("[Airi Hub] [PHASE 3] Loading background modules...")
+    print("[Moonnight Hub] [PHASE 3] Loading background modules...")
 
     CombatModule   = loadModule("combat")
     MovementModule = loadModule("movement")
@@ -209,7 +209,7 @@ task.spawn(function()
     if MovementModule and MovementModule.Init  then pcall(MovementModule.Init)  end
     if VisualsModule  and VisualsModule.Init   then pcall(VisualsModule.Init)   end
 
-    print("[Airi Hub][PHASE 3] All background modules initialized.")
+    print("[Moonnight Hub][PHASE 3] All background modules initialized.")
 end)
 
 -----------------------------------------
@@ -302,17 +302,17 @@ Tabs.Settings:CreateSection("Script Configurations")
 -- ================================================================
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
-local CONFIG_FILE = "AiriHub_CW_Config.json"
+local CONFIG_FILE = "MoonnightHub_CW_Config.json"
 
 local function SaveConfig()
     if writefile then
         local success, json = pcall(function() return HttpService:JSONEncode(Config) end)
         if success then
             writefile(CONFIG_FILE, json)
-            print("[Airi Hub] Configuration saved successfully to " .. CONFIG_FILE)
+            print("[Moonnight Hub] Configuration saved successfully to " .. CONFIG_FILE)
         end
     else
-        warn("[Airi Hub] Executor does not support writefile.")
+        warn("[Moonnight Hub] Executor does not support writefile.")
     end
 end
 
@@ -325,11 +325,11 @@ local function LoadConfig()
             end
         end)
         if success then
-            print("[Airi Hub] Configuration loaded successfully.")
+            print("[Moonnight Hub] Configuration loaded successfully.")
             -- Note: UI elements won't visually update instantly without calling Luna API methods.
             -- But the internal bypass logic will use these variables.
         else
-            warn("[Airi Hub] Failed to parse config JSON.")
+            warn("[Moonnight Hub] Failed to parse config JSON.")
         end
     end
 end
@@ -368,28 +368,33 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     -- Toggle Hotkeys
     if Config.HitboxExpanderKeybind ~= "None" and Config.HitboxExpanderKeybind == keyName then
         Config.HitboxExpander = not Config.HitboxExpander
-        Toast("Hitbox Expander", Config.HitboxExpander and "✅ ON" or "❌ OFF")
+        Toast("Hitbox Expander", Config.HitboxExpander and "âœ… ON" or "âŒ OFF")
     end
 
     if Config.AutoParryToggleKeybind ~= "None" and Config.AutoParryToggleKeybind == keyName then
-        Config.AutoParry = not Config.AutoParry
-        Toast("Auto Parry", Config.AutoParry and "✅ ON" or "❌ OFF")
+        if Config.AutoParryMode == "Toggle" or Config.AutoParryMode == "Trigger" then
+            Config.AutoParry = not Config.AutoParry
+            Toast("Auto Parry", Config.AutoParry and "âœ… ON" or "âŒ OFF")
+        elseif Config.AutoParryMode == "Hold" then
+            Config.AutoParry = true
+        end
     end
 
     if Config.AntiParryToggleKeybind ~= "None" and Config.AntiParryToggleKeybind == keyName then
         Config.AntiParryEnabled = not Config.AntiParryEnabled
-        Toast("Anti Parry", Config.AntiParryEnabled and "✅ ON" or "❌ OFF")
+        Config.AntiParry = Config.AntiParryEnabled -- Sync internal state just like the UI toggle
+        Toast("Anti Parry", Config.AntiParryEnabled and "âœ… ON" or "âŒ OFF")
     end
 
     if Config.AimbotToggleKeybind ~= "None" and Config.AimbotToggleKeybind == keyName then
         Config.AimbotEnabled = not Config.AimbotEnabled
-        Toast("Aimbot", Config.AimbotEnabled and "✅ ON" or "❌ OFF")
+        Toast("Aimbot", Config.AimbotEnabled and "âœ… ON" or "âŒ OFF")
     end
 
     if Config.ESPToggleKeybind ~= "None" and Config.ESPToggleKeybind == keyName then
         Config.ESPEnabled = not Config.ESPEnabled
         if VisualsModule and VisualsModule.ToggleESP then pcall(VisualsModule.ToggleESP, Config.ESPEnabled) end
-        Toast("ESP", Config.ESPEnabled and "✅ ON" or "❌ OFF")
+        Toast("ESP", Config.ESPEnabled and "âœ… ON" or "âŒ OFF")
     end
 
     -- Hold Hotkeys (Activation)
@@ -410,6 +415,10 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
     local keyName = input.KeyCode.Name
     
     -- Hold Hotkeys (Deactivation)
+    if Config.AutoParryToggleKeybind == keyName and Config.AutoParryMode == "Hold" then
+        Config.AutoParry = false
+    end
+    
     if Config.AimbotHoldKeybind == keyName and Config.AimbotMode == "Hold" then
         Config.AimbotEnabled = false
     end
@@ -420,4 +429,4 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
     end
 end)
 
-print("[Airi Hub] Script fully initialized (V6 Modern UI).")
+print("[Moonnight Hub] Script fully initialized (V6 Modern UI).")
