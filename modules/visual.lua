@@ -41,31 +41,9 @@ end
 -- 1. INITIALIZATION
 -- ==========================================
 function VisualsModule.Init()
-    local twilightUrls = {
-        "https://raw.githubusercontent.com/Nebula-Softworks/Twilight-ESP/master/src/init.luau",
-        "https://raw.githubusercontent.com/Nebula-Softworks/Twilight-ESP/master/src/init.lua",
-    }
-
-    local success, result = false, nil
-
-    for _, url in ipairs(twilightUrls) do
-        local httpOk, code = pcall(game.HttpGet, game, url, true)
-        if httpOk and type(code) == "string" and #code > 0 then
-            local lsOk, luaObj = pcall(loadstring, code)
-            -- loadstring bisa return nil kalau executor blokir
-            if lsOk and type(luaObj) == "function" then
-                local execOk, res = pcall(luaObj)
-                if execOk and res then
-                    success, result = true, res
-                    break
-                else
-                    result = res
-                end
-            elseif luaObj == nil then
-                warn("[Moonnight Hub] Twilight ESP: loadstring return nil (executor blocked?)")
-            end
-        end
-    end
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/Nebula-Softworks/Twilight-ESP/master/src/init.luau"))()
+    end)
 
     if success and result then
         Twilight = result

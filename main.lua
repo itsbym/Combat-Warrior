@@ -127,59 +127,39 @@ end
 -- ================================================================
 local function fetchLuna()
     print("[Moonnight Hub] DEBUG: Attempting to load Luna UI...")
-
-    -- STRATEGI 0: Coba local file dulu (readfile mungkin nil di beberapa executor)
-    if readfile then
-        local ok, localCode = pcall(readfile, "LUNA-LIB-UI/source.lua")
-        if ok and type(localCode) == "string" and #localCode > 0 then
-            local success, luaObj = pcall(loadstring, localCode)
-            if success and type(luaObj) == "function" then
-                local ok2, result = pcall(luaObj)
-                if ok2 and type(result) == "table" then
-                    print("[Moonnight Hub] SUCCESS: Loaded Luna from local file!")
-                    return true, result
-                end
+    
+    local ok, localCode = pcall(readfile, "LUNA-LIB-UI/source.lua")
+    if ok and type(localCode) == "string" and #localCode > 0 then
+        local success, luaObj = pcall(loadstring, localCode)
+        if success and type(luaObj) == "function" then
+            local result = luaObj()
+            if type(result) == "table" then
+                print("[Moonnight Hub] SUCCESS: Loaded Luna from local file!")
+                return true, result
             end
         end
     end
 
-    -- STRATEGI 1: Coba loadstring via GitHub (multiple fallback URLs)
     local sources = {
-        -- Luna Interface Suite (official)
         "https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/refs/heads/master/source.lua",
-        -- Mirror / fork populer
         "https://raw.githubusercontent.com/AmeloxRUS/guiluna/refs/heads/main/luna.lua",
-        -- Orion fallback (compat mode) – mirip API Luna
-        "https://raw.githubusercontent.com/shlexware/Orion/main/source",
-        -- Rayfield fallback
-        "https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/main/source.lua",
     }
 
     for _, url in ipairs(sources) do
-        print("[Moonnight Hub] Trying UI source: " .. url)
         local ok2, code = pcall(game.HttpGet, game, url, true)
         if ok2 and type(code) == "string" and #code > 0 then
             local success, luaObj = pcall(loadstring, code)
-            -- loadstring bisa return nil jika executor memblokir atau syntax error
             if success and type(luaObj) == "function" then
-                local ok3, result = pcall(luaObj)
-                if ok3 and type(result) == "table" then
-                    print("[Moonnight Hub] SUCCESS: Loaded UI from: " .. url)
+                local result = luaObj()
+                if type(result) == "table" then
+                    print("[Moonnight Hub] SUCCESS: Loaded Luna from GitHub!")
                     return true, result
-                elseif not ok3 then
-                    warn("[Moonnight Hub] UI execute error dari " .. url .. ": " .. tostring(result))
                 end
-            elseif not success then
-                warn("[Moonnight Hub] loadstring error dari " .. url .. ": " .. tostring(luaObj))
-            elseif luaObj == nil then
-                warn("[Moonnight Hub] loadstring return nil (executor blocked?) dari: " .. url)
             end
-        else
-            warn("[Moonnight Hub] HttpGet gagal untuk: " .. url)
         end
     end
 
-    return false, "semua sumber UI gagal dimuat"
+    return false, "semua sumber gagal dimuat"
 end
 
 print("[Moonnight Hub] [PHASE 2] Fetching Luna UI...")
