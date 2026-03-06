@@ -52,7 +52,7 @@ end
 local function isValidTarget(char, teamCheck, whitelistPlayer, blacklistPlayer)
     if not char or not char.Parent or char.Name == LocalPlayer.Name then return false end
     local player = Players:GetPlayerFromCharacter(char) or Players:FindFirstChild(char.Name)
-    if not player then return true end
+    if not player then return false end -- Changed: non-player models (e.g. tools, shields) are NOT valid targets
     if blacklistPlayer and isListValid(blacklistPlayer, player.Name) then return true end
     if whitelistPlayer and isListValid(whitelistPlayer, player.Name) then return false end
     if teamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then return false end
@@ -200,16 +200,12 @@ local function hookAntiParry()
     charUtil.getIsHittableCharacterPart = function(part, unused)
         local Config = getgenv().AiriConfig
         if Config and Config.AntiParryEnabled and Config.AntiParry then
-            -- If this part belongs to local player's parry shield, let it block normally
-            -- If it's an ENEMY'S parry shield, block detection → our hit goes through
-            local charModel = part and part:FindFirstAncestorOfClass("Model")
-            if charModel and charModel ~= LocalPlayer.Character then
-                -- Check if the part is specifically a parry-shield part
-                if part:GetAttribute("ParryShieldId") ~= nil then
-                    return false   -- our hitbox ignores their parry shield → hit lands on body
-                end
-                -- Check by name for parry shield model children
-                if part.Name:lower():find("parry") or part.Name:lower():find("shield") then
+            -- Hydra's Anti-Parry logic:
+            -- ONLY valid enemy character models are "hittable".
+            -- Anything else (Tools, Accessories, Shields, LocalPlayer, Teammates) returns False
+            -- This makes raycasts pass through Enemy Parry Shields straight to their Torso/Head.
+            if part and typeof(part) == "Instance" then
+                if not isValidTarget(part.Parent, Config.AutoParryTeamCheck, Config.AutoParryWhitelistPlayer, Config.AutoParryBlacklistPlayer) then
                     return false
                 end
             end
